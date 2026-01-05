@@ -131,7 +131,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
     
 
   return (
-    <Modal visible={visible} animationType="fade" presentationStyle="overFullScreen" transparent>
+    <Modal visible={visible} animationType="fade" presentationStyle="overFullScreen" transparent statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header with Back Button and Counter */}

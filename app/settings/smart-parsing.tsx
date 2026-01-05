@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationParser } from '../../services/NotificationParser';
 
-export default function BankKeywords() {
+export default function SmartParsing() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
-  const [smsEnabled, setSmsEnabled] = useState(true);
   const [emailAccounts] = useState([
     { email: 'receipts@gmail.com', lastSync: '14m ago', icon: 'mail' },
     { email: 'finance@work.com', lastSync: '2h ago', icon: 'briefcase' }
@@ -69,7 +68,6 @@ export default function BankKeywords() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Smart Parsing</Text>
-          <Text style={styles.headerSubtitle}>MANAGE & PARSE</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -82,23 +80,27 @@ export default function BankKeywords() {
           </View>
           
           <View style={styles.sectionContent}>
-            {/* SMS Toggle */}
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: '#dbeafe' }]}>
-                  <Ionicons name="chatbubble" size={20} color="#3b82f6" />
+            {/* SMS Coming Soon */}
+            <View>
+              <View style={styles.comingSoonGradient}>
+                <View style={styles.comingSoonContent}>
+                  <View style={styles.smsIconContainer}>
+                    <Ionicons name="chatbubble" size={20} color="#EA2831" />
+                  </View>
+                  <View style={styles.smsTextContainer}>
+                    <View style={styles.smsHeaderRow}>
+                      <Text style={styles.smsTitle}>SMS Messages</Text>
+                      <View style={styles.comingSoonBadge}>
+                        <Text style={styles.comingSoonText}>Coming Soon</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.smsSubtitle}>Automated parsing for text notifications</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.toggleTitle}>SMS Messages</Text>
-                  <Text style={styles.toggleSubtitle}>Parse incoming texts</Text>
+                <View style={styles.lockIcon}>
+                  <Ionicons name="time" size={20} color="#EA2831" style={{ opacity: 0.5 }} />
                 </View>
               </View>
-              <Switch
-                value={smsEnabled}
-                onValueChange={setSmsEnabled}
-                trackColor={{ false: '#e5e7eb', true: '#EA2831' }}
-                thumbColor="white"
-              />
             </View>
 
             <View style={styles.divider} />
@@ -120,7 +122,7 @@ export default function BankKeywords() {
                         <Ionicons 
                           name={account.icon as any} 
                           size={18} 
-                          color="#64748b" 
+                          color="#EA2831" 
                         />
                       </View>
                       <View>
@@ -130,10 +132,10 @@ export default function BankKeywords() {
                     </View>
                     <View style={styles.emailActions}>
                       <TouchableOpacity style={styles.emailActionButton}>
-                        <Ionicons name="sync" size={18} color="#94a3b8" />
+                        <Ionicons name="refresh" size={18} color="#EA2831" />
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.emailActionButton}>
-                        <Ionicons name="remove-circle" size={18} color="#94a3b8" />
+                        <Ionicons name="close-circle" size={18} color="#EA2831" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -141,7 +143,7 @@ export default function BankKeywords() {
               </View>
               
               <TouchableOpacity style={styles.addEmailButton}>
-                <Ionicons name="add-circle" size={18} color="#94a3b8" />
+                <Ionicons name="add-circle" size={18} color="#EA2831" />
                 <Text style={styles.addEmailText}>Add Email Account</Text>
               </TouchableOpacity>
             </View>
@@ -150,22 +152,22 @@ export default function BankKeywords() {
 
         {/* Active Keywords Section */}
         <View style={styles.section}>
-          <View style={styles.keywordsHeader}>
+          <View style={styles.keywordsContent}>
             <Text style={styles.sectionTitle}>ACTIVE KEYWORDS</Text>
+            
+            <View style={styles.keywordsContainer}>
+              {keywords.map((keyword, index) => (
+                <View key={index} style={styles.keywordTag}>
+                  <Text style={styles.keywordText}>{keyword}</Text>
+                  <TouchableOpacity onPress={() => removeKeyword(index)} style={styles.keywordCloseButton}>
+                    <Ionicons name="close" size={16} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
           </View>
           
-          <View style={styles.keywordsContainer}>
-            {keywords.map((keyword, index) => (
-              <View key={index} style={styles.keywordTag}>
-                <Text style={styles.keywordText}>{keyword}</Text>
-                <TouchableOpacity onPress={() => removeKeyword(index)}>
-                  <Ionicons name="close" size={16} color="#94a3b8" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-          
-          <View style={styles.divider} />
+          <View style={styles.keywordsDivider} />
           
           <View style={styles.addKeywordSection}>
             <Text style={styles.inputLabel}>ADD NEW KEYWORD</Text>
@@ -192,72 +194,87 @@ export default function BankKeywords() {
         </View>
 
         {/* Recent Messages */}
-        {recentMessages.map((message) => (
+        {recentMessages.map((message, index) => (
           <View key={message.id} style={styles.messageCard}>
-            <View style={styles.messageHeader}>
-              <View style={[
-                styles.messageIcon,
-                message.type === 'sms' 
-                  ? { backgroundColor: '#dbeafe', borderColor: '#bfdbfe' }
-                  : { backgroundColor: '#f3e8ff', borderColor: '#e9d5ff' }
-              ]}>
-                <Ionicons 
-                  name={message.type === 'sms' ? 'chatbubble' : 'mail'} 
-                  size={20} 
-                  color={message.type === 'sms' ? '#3b82f6' : '#8b5cf6'} 
-                />
-              </View>
-              <View style={styles.messageInfo}>
-                <View style={styles.messageTopRow}>
-                  <Text style={styles.senderText}>From: {message.sender}</Text>
-                  <Text style={styles.messageTime}>{message.time}</Text>
+            <View style={styles.messageContent}>
+              <View style={styles.messageHeader}>
+                <View style={styles.messageIcon}>
+                  <Ionicons name="mail" size={20} color="#EA2831" />
                 </View>
-                <View style={styles.messageContent}>
-                  <Text style={styles.messageText}>"{message.message}"</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.formSection}>
-              <View style={styles.formRow}>
-                <View style={styles.formField}>
-                  <Text style={styles.fieldLabel}>MERCHANT</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={message.merchant}
-                    editable={false}
-                  />
-                </View>
-                <View style={styles.formField}>
-                  <Text style={styles.fieldLabel}>AMOUNT</Text>
-                  <View style={styles.amountInput}>
-                    <Text style={styles.dollarSign}>$</Text>
-                    <TextInput
-                      style={styles.amountField}
-                      value={message.amount}
-                      editable={false}
-                    />
+                <View style={styles.messageInfo}>
+                  <View style={styles.messageTopRow}>
+                    <Text style={styles.senderLabel}>
+                      {index === 0 ? 'receipts@wholefoods.com' : 'receipts@netflix.com'}
+                    </Text>
+                    <Text style={styles.messageTime}>{message.time}</Text>
+                  </View>
+                  <View style={styles.rawMessageContainer}>
+                    <Text style={styles.rawMessageText}>
+                      "{index === 0 
+                        ? 'Receipt for your visit at Whole Foods Market. You paid $14.50 using Visa ending 1234.'
+                        : 'Netflix.com Subscription payment of 15.99 USD processed on card ending 8899.'
+                      }"
+                    </Text>
                   </View>
                 </View>
               </View>
-              
-              <View style={styles.categoryRow}>
-                <Text style={styles.fieldLabel}>CATEGORY</Text>
-                <View style={styles.selectContainer}>
-                  <Text style={styles.selectText}>{message.category}</Text>
-                  <Ionicons name="chevron-down" size={16} color="#94a3b8" />
+
+              <View style={styles.inlineFormSection}>
+                <View style={styles.inlineFormField}>
+                  <View style={[styles.fieldIconContainer, { backgroundColor: '#f8f6f6', borderColor: '#e5e7eb' }]}>
+                    <Ionicons name="storefront" size={20} color="#64748b" />
+                  </View>
+                  <View style={styles.fieldContent}>
+                    <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Merchant</Text>
+                    <TextInput
+                      style={styles.inlineFieldInput}
+                      value={index === 0 ? 'Whole Foods Market' : 'Netflix.com'}
+                      editable={true}
+                    />
+                  </View>
+                  <Ionicons name="create-outline" size={16} color="#cbd5e1" />
+                </View>
+
+                <View style={styles.inlineFormField}>
+                  <View style={[styles.fieldIconContainer, { backgroundColor: '#f8f6f6', borderColor: '#e5e7eb' }]}>
+                    <Ionicons name="cash" size={20} color="#64748b" />
+                  </View>
+                  <View style={styles.fieldContent}>
+                    <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Amount</Text>
+                    <TextInput
+                      style={[styles.inlineFieldInput, { fontFamily: 'monospace' }]}
+                      value={index === 0 ? '14.50' : '15.99'}
+                      editable={true}
+                    />
+                  </View>
+                  <Ionicons name="create-outline" size={16} color="#cbd5e1" />
+                </View>
+
+                <View style={styles.inlineFormField}>
+                  <View style={[styles.fieldIconContainer, { backgroundColor: '#f8f6f6', borderColor: '#e5e7eb' }]}>
+                    <Ionicons name="card" size={20} color="#64748b" />
+                  </View>
+                  <View style={styles.fieldContent}>
+                    <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Method</Text>
+                    <TextInput
+                      style={styles.inlineFieldInput}
+                      value={index === 0 ? 'Visa ending 1234' : 'card ending 8899'}
+                      editable={true}
+                    />
+                  </View>
+                  <Ionicons name="create-outline" size={16} color="#cbd5e1" />
                 </View>
               </View>
             </View>
 
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.approveButton}>
-                <Ionicons name="checkmark-circle" size={18} color="#059669" />
-                <Text style={styles.approveText}>Approve Sender</Text>
-              </TouchableOpacity>
+            <View style={styles.actionButtonsContainer}>
               <TouchableOpacity style={styles.rejectButton}>
-                <Ionicons name="ban" size={18} color="#dc2626" />
-                <Text style={styles.rejectText}>Reject Sender</Text>
+                <Ionicons name="ban" size={18} color="#EA2831" />
+                <Text style={styles.rejectText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.approveButton}>
+                <Ionicons name="checkmark-circle" size={18} color="white" />
+                <Text style={styles.approveText}>Approve</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -267,7 +284,7 @@ export default function BankKeywords() {
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={18} color="#1d4ed8" />
           <Text style={styles.infoText}>
-            Correcting these values helps the app learn your transaction patterns. All learning happens on your device.
+            Correcting these values helps the app learn your transaction patterns. Tap text in the snippet to quick-select.
           </Text>
         </View>
       </ScrollView>
@@ -304,13 +321,6 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#64748b',
-    letterSpacing: 1,
-    marginTop: 2,
-  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
@@ -340,50 +350,68 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     letterSpacing: 1,
   },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  refreshText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#EA2831',
-  },
   sectionContent: {
     padding: 20,
   },
-  toggleRow: {
+  comingSoonGradient: {
+    backgroundColor: 'rgba(234, 40, 49, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 40, 49, 0.3)',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  toggleLeft: {
+  comingSoonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  iconContainer: {
+  smsIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 12,
+    backgroundColor: 'rgba(234, 40, 49, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: 'rgba(234, 40, 49, 0.3)',
   },
-  toggleTitle: {
+  smsTextContainer: {
+    flex: 1,
+  },
+  smsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smsTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#7f1d1d',
   },
-  toggleSubtitle: {
+  comingSoonBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 40, 49, 0.3)',
+  },
+  comingSoonText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#EA2831',
+  },
+  smsSubtitle: {
     fontSize: 10,
-    color: '#64748b',
+    color: 'rgba(127, 29, 29, 0.7)',
+    marginTop: 2,
+  },
+  lockIcon: {
+    opacity: 0.5,
   },
   divider: {
     height: 1,
@@ -471,17 +499,16 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
+    borderColor: 'rgba(234, 40, 49, 0.3)',
     borderRadius: 12,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(234, 40, 49, 0.05)',
   },
   addEmailText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#64748b',
+    color: '#EA2831',
   },
-  keywordsHeader: {
+  keywordsContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 12,
@@ -490,7 +517,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    paddingHorizontal: 20,
+    marginTop: 12,
   },
   keywordTag: {
     flexDirection: 'row',
@@ -508,6 +535,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
+  },
+  keywordCloseButton: {
+    padding: 4,
+    borderRadius: 6,
+  },
+  keywordsDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    width: '100%',
+    marginVertical: 0,
   },
   addKeywordSection: {
     backgroundColor: '#f8fafc',
@@ -537,7 +574,7 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   addButton: {
-    backgroundColor: '#1f2937',
+    backgroundColor: '#EA2831',
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 12,
@@ -571,8 +608,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#f1f5f9',
-    padding: 20,
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  messageContent: {
+    padding: 20,
   },
   messageHeader: {
     flexDirection: 'row',
@@ -584,9 +624,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    borderColor: '#fecaca',
     flexShrink: 0,
   },
   messageInfo: {
@@ -598,7 +640,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  senderText: {
+  senderLabel: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#475569',
@@ -608,91 +650,64 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94a3b8',
   },
-  messageContent: {
+  rawMessageContainer: {
     backgroundColor: '#f8fafc',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    marginTop: 8,
   },
-  messageText: {
+  rawMessageText: {
     fontSize: 11,
     fontFamily: 'monospace',
     color: '#475569',
-    lineHeight: 16,
+    lineHeight: 20,
   },
-  formSection: {
-    gap: 16,
+  inlineFormSection: {
+    gap: 12,
+    marginTop: 16,
   },
-  formRow: {
+  inlineFormField: {
     flexDirection: 'row',
-    gap: 16,
+    alignItems: 'center',
+    gap: 12,
+    padding: 4,
+    paddingRight: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    borderRadius: 12,
   },
-  formField: {
+  fieldIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  fieldContent: {
     flex: 1,
-    gap: 6,
   },
-  fieldLabel: {
-    fontSize: 10,
+  inlineFieldLabel: {
+    fontSize: 9,
     fontWeight: 'bold',
-    color: '#94a3b8',
     letterSpacing: 1,
-    marginLeft: 4,
+    marginBottom: 2,
   },
-  fieldInput: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  inlineFieldInput: {
     fontSize: 14,
-    color: '#1f2937',
+    fontWeight: '600',
+    color: '#374151',
+    padding: 0,
   },
-  amountInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  dollarSign: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginRight: 4,
-  },
-  amountField: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1f2937',
-    fontFamily: 'monospace',
-  },
-  categoryRow: {
-    gap: 6,
-  },
-  selectContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  selectText: {
-    fontSize: 14,
-    color: '#1f2937',
-  },
-  actionButtons: {
+  actionButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(248, 250, 252, 0.5)',
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
@@ -702,16 +717,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 10,
-    backgroundColor: '#f0fdf4',
+    paddingVertical: 12,
+    backgroundColor: '#EA2831',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#EA2831',
   },
   approveText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#059669',
+    color: 'white',
   },
   rejectButton: {
     flex: 1,
@@ -719,16 +734,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 10,
-    backgroundColor: '#fef2f2',
+    paddingVertical: 12,
+    backgroundColor: 'white',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e5e7eb',
   },
   rejectText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#dc2626',
+    color: '#EA2831',
   },
   infoCard: {
     flexDirection: 'row',

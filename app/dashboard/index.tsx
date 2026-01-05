@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AddTransactionModal from '../../components/AddTransactionModal';
+import AddTransactionModal from '../../components/drawers/AddTransactionModal';
 import PieChart from '../../components/PieChart';
-import TransactionApprovalModal from '../../components/TransactionApprovalModal';
+import TransactionApprovalModal from '../../components/drawers/TransactionApprovalModal';
 
 const AnimatedNumber = ({ value, duration = 1500, prefix = '$', suffix = '' }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;

@@ -121,7 +121,7 @@ export default function SettingsIndex() {
                 justifyContent: 'space-between',
                 padding: 16,
               }}
-              onPress={() => router.push('/settings/bank-keywords')}
+              onPress={() => router.push('/settings/smart-parsing')}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <View style={{

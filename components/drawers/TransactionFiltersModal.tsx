@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, PanResponder, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -14,6 +14,41 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
   const [selectedCategories, setSelectedCategories] = useState(['Fuel']);
   const [selectedPayments, setSelectedPayments] = useState(['Visa ••45']);
   const [customDate, setCustomDate] = useState('');
+
+  const pan = useRef(new Animated.ValueXY()).current;
+  
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+  }, [visible]);
+  
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: () => false,
+  });
+
+  const handlePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => {
+      return evt.nativeEvent.locationY < 40;
+    },
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      return evt.nativeEvent.locationY < 40 && gestureState.dy > 20 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dy > 0) {
+        pan.setValue({ x: 0, y: gestureState.dy });
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dy > 150 && gestureState.vy > 0.5) {
+        onClose();
+      } else {
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
 
   const periods = ['Today', 'Last 7 Days', 'This Month'];
   const categories = [
@@ -68,10 +103,18 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <BlurView intensity={50} style={styles.overlay}>
-        <View style={styles.container}>
+      <View style={styles.overlay}>
+        <Animated.View 
+          style={[
+            styles.container,
+            { transform: [{ translateY: pan.y }] }
+          ]}
+        >
           {/* Drag Handle */}
-          <View style={styles.dragHandle}>
+          <View 
+            style={styles.dragHandle}
+            {...handlePanResponder.panHandlers}
+          >
             <View style={styles.handle} />
           </View>
 
@@ -199,8 +242,8 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </BlurView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -209,7 +252,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   container: {
     backgroundColor: '#f8f6f6',
@@ -346,7 +389,6 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingVertical: 24,
     paddingTop: 16,
@@ -355,17 +397,22 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   resetButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    minWidth: 80,
+    flex: 1,
+    height: 56,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   resetText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#6b7280',
   },
   applyButton: {
-    flex: 1,
+    flex: 2,
     height: 56,
     backgroundColor: '#EA2831',
     borderRadius: 16,

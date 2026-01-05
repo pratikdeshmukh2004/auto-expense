@@ -1,12 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, usePathname } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import BottomNavigation from '../components/BottomNavigation';
-import { useEffect, useState } from 'react';
 import { AuthService } from '../services/AuthService';
 import { NotificationParser } from '../services/NotificationParser';
-import { router } from 'expo-router';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -54,7 +53,7 @@ export default function RootLayout() {
         <Stack.Screen name="transactions/index" options={{ headerShown: false }} />
         <Stack.Screen name="transactions/details" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/bank-keywords" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/smart-parsing" options={{ headerShown: false }} />
       </Stack>
       {showBottomNav && <BottomNavigation />}
       <StatusBar style="auto" />

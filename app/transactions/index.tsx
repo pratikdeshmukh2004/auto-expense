@@ -3,8 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Animated, PanRespo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import AddTransactionModal from '../../components/AddTransactionModal';
-import TransactionFiltersModal from '../../components/TransactionFiltersModal';
+import AddTransactionModal from '../../components/drawers/AddTransactionModal';
+import TransactionFiltersModal from '../../components/drawers/TransactionFiltersModal';
 
 export default function TransactionsIndex() {
   const [showAddModal, setShowAddModal] = useState(false);

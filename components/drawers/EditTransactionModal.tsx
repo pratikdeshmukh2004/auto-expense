@@ -26,9 +26,18 @@ export default function EditTransactionModal({ visible, onClose }: EditTransacti
   }, [visible]);
   
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      return Math.abs(gestureState.dy) > 20;
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: () => false,
+  });
+
+  const handlePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => {
+      // Only respond if touch starts in the handle area (top 40px)
+      return evt.nativeEvent.locationY < 40;
+    },
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      // Only respond if starting from handle area AND moving down significantly
+      return evt.nativeEvent.locationY < 40 && gestureState.dy > 20 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
     },
     onPanResponderMove: (_, gestureState) => {
       if (gestureState.dy > 0) {
@@ -36,7 +45,7 @@ export default function EditTransactionModal({ visible, onClose }: EditTransacti
       }
     },
     onPanResponderRelease: (_, gestureState) => {
-      if (gestureState.dy > 100) {
+      if (gestureState.dy > 150 && gestureState.vy > 0.5) {
         onClose();
       } else {
         Animated.spring(pan, {
@@ -79,12 +88,11 @@ export default function EditTransactionModal({ visible, onClose }: EditTransacti
             paddingBottom: 80,
             transform: [{ translateY: pan.y }],
           }}
-          {...panResponder.panHandlers}
         >
           {/* Handle */}
-          <TouchableOpacity 
+          <View 
             style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}
-            onPress={onClose}
+            {...handlePanResponder.panHandlers}
           >
             <View style={{
               width: 48,
@@ -92,7 +100,7 @@ export default function EditTransactionModal({ visible, onClose }: EditTransacti
               backgroundColor: '#d1d5db',
               borderRadius: 3,
             }} />
-          </TouchableOpacity>
+          </View>
 
           {/* Header */}
           <View style={{
