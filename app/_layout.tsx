@@ -58,7 +58,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings/payment-methods" options={{ headerShown: false }} />
       </Stack>
       {showBottomNav && <BottomNavigation />}
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }

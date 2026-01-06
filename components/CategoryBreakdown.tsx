@@ -117,9 +117,9 @@ export default function CategoryBreakdown({
       
       {categories.length > 0 ? (
         <View style={{ 
-          flexDirection: isSmallScreen ? 'column' : 'row', 
+          flexDirection: 'column',
           alignItems: 'center', 
-          gap: isSmallScreen ? 24 : 32 
+          gap: 24
         }}>
           <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <View style={{
