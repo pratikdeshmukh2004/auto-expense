@@ -54,6 +54,8 @@ export default function RootLayout() {
         <Stack.Screen name="transactions/details" options={{ headerShown: false }} />
         <Stack.Screen name="settings/index" options={{ headerShown: false }} />
         <Stack.Screen name="settings/smart-parsing" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/categories" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/payment-methods" options={{ headerShown: false }} />
       </Stack>
       {showBottomNav && <BottomNavigation />}
       <StatusBar style="auto" />

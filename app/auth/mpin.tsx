@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -11,6 +11,8 @@ export default function MPINScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('');
 
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
   useEffect(() => {
     checkBiometricAvailability();
   }, []);
@@ -19,6 +21,7 @@ export default function MPINScreen() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const biometricSetting = await SecureStore.getItemAsync('biometric_enabled');
     
     if (hasHardware && isEnrolled) {
       setBiometricAvailable(true);
@@ -27,6 +30,15 @@ export default function MPINScreen() {
       } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
         setBiometricType('fingerprint');
       }
+      
+      if (biometricSetting === 'true') {
+        setBiometricEnabled(true);
+        // Only auto authenticate if we're sure biometric is available
+        // Don't auto-trigger if there might be detection issues
+      }
+    } else {
+      // Set default type based on platform even if not available
+      setBiometricType(Platform.OS === 'ios' ? 'face' : 'fingerprint');
     }
   };
 
@@ -59,7 +71,34 @@ export default function MPINScreen() {
     }
   };
 
+  const handleForgotMpin = () => {
+    Alert.alert(
+      'Forgot MPIN',
+      'This feature is not available right now. Please contact customer support for assistance.'
+    );
+  };
+
   const handleBiometricAuth = async () => {
+    const biometricSetting = await SecureStore.getItemAsync('biometric_enabled');
+    
+    if (!biometricAvailable) {
+      const biometricName = Platform.OS === 'ios' ? 'Face ID' : 'Fingerprint';
+      Alert.alert(
+        `${biometricName} Not Available`,
+        `${biometricName} is not set up on this device.\n\nTo use ${biometricName}:\n1. Go to device Settings\n2. Set up ${biometricName}\n3. Return to use ${biometricName} login`
+      );
+      return;
+    }
+    
+    if (biometricSetting !== 'true') {
+      const biometricName = Platform.OS === 'ios' ? 'Face ID' : 'Biometric';
+      Alert.alert(
+        `${biometricName} Authentication Disabled`,
+        `To enable ${biometricName} authentication:\n\n1. Enter your MPIN to access the app\n2. Go to Settings\n3. Enable ${biometricName} Lock\n4. Return to login with ${biometricName}`
+      );
+      return;
+    }
+
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Authenticate to access Auto Expense',
@@ -119,12 +158,11 @@ export default function MPINScreen() {
                     key={itemIndex}
                     style={styles.keypadButton}
                     onPress={handleBiometricAuth}
-                    disabled={!biometricAvailable}
                   >
                     <Ionicons 
-                      name="scan" 
+                      name="happy-outline" 
                       size={32} 
-                      color={biometricAvailable ? "#EA2831" : "#94a3b8"} 
+                      color="#EA2831" 
                     />
                   </TouchableOpacity>
                 );
@@ -134,14 +172,20 @@ export default function MPINScreen() {
                     key={itemIndex}
                     style={styles.keypadButton}
                     onPress={handleBiometricAuth}
-                    disabled={!biometricAvailable}
                   >
                     <Ionicons 
                       name="finger-print" 
                       size={32} 
-                      color={biometricAvailable ? "#EA2831" : "#94a3b8"} 
+                      color="#EA2831" 
                     />
                   </TouchableOpacity>
+                );
+              } else if (item === '') {
+                return (
+                  <View
+                    key={itemIndex}
+                    style={styles.keypadButton}
+                  />
                 );
               } else {
                 return (
@@ -181,7 +225,7 @@ export default function MPINScreen() {
         {renderKeypad()}
 
         <View style={styles.footer}>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={handleForgotMpin}>
             <Text style={styles.forgotMpin}>Forgot MPIN?</Text>
           </TouchableOpacity>
           <TouchableOpacity>

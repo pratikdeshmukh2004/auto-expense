@@ -20,6 +20,19 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
   const [isAM, setIsAM] = useState(initialDate.getHours() < 12);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  useEffect(() => {
+    if (visible) {
+      setSelectedDate(initialDate);
+      setSelectedHour(initialDate.getHours());
+      setSelectedMinute(initialDate.getMinutes());
+      setCurrentMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+      
+      // Update slider value based on initial time
+      const totalMinutes = initialDate.getHours() * 60 + initialDate.getMinutes();
+      setSliderValue(totalMinutes / 1440);
+    }
+  }, [visible, initialDate]);
+
   // Generate dates for the current month
   const generateMonthDates = () => {
     const year = currentMonth.getFullYear();
@@ -38,6 +51,14 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
     date.toDateString() === selectedDate.toDateString()
   );
   const [selectedDateIndex, setSelectedDateIndex] = useState(todayIndex >= 0 ? todayIndex : 0);
+
+  useEffect(() => {
+    const newDates = generateMonthDates();
+    const newTodayIndex = newDates.findIndex(date => 
+      date.toDateString() === selectedDate.toDateString()
+    );
+    setSelectedDateIndex(newTodayIndex >= 0 ? newTodayIndex : 0);
+  }, [currentMonth, selectedDate]);
 
   useEffect(() => {
     if (scrollViewRef.current && selectedDateIndex >= 0) {

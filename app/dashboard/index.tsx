@@ -1,95 +1,111 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AddTransactionModal from '../../components/drawers/AddTransactionModal';
-import PieChart from '../../components/PieChart';
+import CategoryBreakdown from '../../components/CategoryBreakdown';
 import TransactionApprovalModal from '../../components/drawers/TransactionApprovalModal';
+import TransactionModal from '../../components/drawers/TransactionModal';
+import PaymentMethods from '../../components/PaymentMethods';
+import SpendingTrends from '../../components/SpendingTrends';
+import TransactionCard from '../../components/TransactionCard';
+import { CategoryService } from '../../services/CategoryService';
+import { Transaction, TransactionService } from '../../services/TransactionService';
+import { getRelativeTime } from '../../utils/dateUtils';
 
-const AnimatedNumber = ({ value, duration = 1500, prefix = '$', suffix = '' }) => {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const [displayValue, setDisplayValue] = useState('0');
-
-  useEffect(() => {
-    const numericValue = parseFloat(value.replace(/[$,]/g, ''));
-    
-    const listener = animatedValue.addListener(({ value }) => {
-      const formatted = numericValue === 0 ? '0.00' : 
-        value < 1000 ? value.toFixed(2) : 
-        (value / 1000).toFixed(1) + 'k';
-      setDisplayValue(formatted);
-    });
-
-    Animated.timing(animatedValue, {
-      toValue: numericValue,
-      duration,
-      useNativeDriver: false,
-    }).start();
-
-    return () => animatedValue.removeListener(listener);
-  }, [value]);
-
-  return <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
-    {prefix}{displayValue}{suffix}
-  </Text>;
+const AnimatedNumber = ({ value, prefix = '₹', suffix = '' }) => {
+  return (
+    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
+      {prefix}{value}{suffix}
+    </Text>
+  );
 };
 
 export default function DashboardIndex() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
-  
-  const barAnimations = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
-  const circleAnim = useRef(new Animated.Value(0)).current;
-  const progressAnimations = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{[category: string]: Transaction[]}>({});
+  const [incomeBreakdown, setIncomeBreakdown] = useState<{[category: string]: Transaction[]}>({});
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categoryIcons, setCategoryIcons] = useState<{[key: string]: string}>({});
+  const [categoryColors, setCategoryColors] = useState<{[key: string]: string}>({});
+  const [refreshing, setRefreshing] = useState(false);
   
   useEffect(() => {
     const now = new Date();
     setCurrentDate(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
-    const barAnimationSequence = barAnimations.map((anim, index) => 
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 1000,
-        delay: index * 150,
-        useNativeDriver: false,
-      })
-    );
+    loadTransactionData();
+  }, []);
+
+  const loadTransactionData = async () => {
+    try {
+      const allTransactions = await TransactionService.getTransactions();
+      const recentTxns = await TransactionService.getRecentTransactions(4);
+      const income = await TransactionService.getTotalIncome();
+      const expenses = await TransactionService.getTotalExpenses();
+      const categoryData = await TransactionService.getTransactionsByCategory();
+      const incomeData = await TransactionService.getIncomeByCategory();
+      const categories = await CategoryService.getCategories();
+      
+      const iconMap = categories.reduce((acc, cat) => {
+        acc[cat.name] = cat.icon;
+        return acc;
+      }, {} as {[key: string]: string});
+      
+      const colorMap = categories.reduce((acc, cat) => {
+        acc[cat.name] = cat.color;
+        return acc;
+      }, {} as {[key: string]: string});
+      
+      setTransactions(allTransactions);
+      setRecentTransactions(recentTxns);
+      setTotalIncome(income);
+      setTotalExpenses(expenses);
+      setCategoryBreakdown(categoryData);
+      setIncomeBreakdown(incomeData || {});
+      setCategoryIcons(iconMap);
+      setCategoryColors(colorMap);
+    } catch (error) {
+      console.error('Error loading transaction data:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadTransactionData();
+    setRefreshing(false);
+  };
+
+  const getMonthlyComparison = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
     
-    const progressAnimationSequence = progressAnimations.map((anim, index) => 
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 1200,
-        delay: 800 + index * 300,
-        useNativeDriver: false,
-      })
-    );
-    
-    const circleAnimation = Animated.timing(circleAnim, {
-      toValue: 1,
-      duration: 1500,
-      delay: 600,
-      useNativeDriver: false,
+    const currentMonthTransactions = transactions.filter(t => {
+      const date = new Date(t.timestamp);
+      return date.getMonth() === currentMonth && date.getFullYear() === now.getFullYear();
     });
     
-    Animated.parallel([
-      ...barAnimationSequence,
-      ...progressAnimationSequence,
-      circleAnimation,
-    ]).start();
-  }, []);
+    const lastMonthTransactions = transactions.filter(t => {
+      const date = new Date(t.timestamp);
+      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+    });
+    
+    const currentIncome = currentMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const currentExpenses = currentMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const lastIncome = lastMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const lastExpenses = lastMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const incomeChange = lastIncome > 0 ? ((currentIncome - lastIncome) / lastIncome) * 100 : 0;
+    const expenseChange = lastExpenses > 0 ? ((currentExpenses - lastExpenses) / lastExpenses) * 100 : 0;
+    
+    return { incomeChange, expenseChange };
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6' }}>
@@ -139,7 +155,13 @@ export default function DashboardIndex() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Income/Expense Cards */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
           <View style={{
@@ -168,8 +190,14 @@ export default function DashboardIndex() {
               </View>
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748b' }}>Income</Text>
             </View>
-            <AnimatedNumber value="4,250.00" />
-            <Text style={{ fontSize: 10, fontWeight: '500', color: '#10b981' }}>+12% vs last month</Text>
+            <AnimatedNumber value={totalIncome.toFixed(2)} />
+            <Text style={{ fontSize: 10, fontWeight: '500', color: '#10b981' }}>
+              {(() => {
+                const { incomeChange } = getMonthlyComparison();
+                const sign = incomeChange >= 0 ? '+' : '';
+                return `${sign}${incomeChange.toFixed(0)}% vs last month`;
+              })()}
+            </Text>
           </View>
           
           <View style={{
@@ -198,408 +226,32 @@ export default function DashboardIndex() {
               </View>
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748b' }}>Expense</Text>
             </View>
-            <AnimatedNumber value="2,145.50" />
-            <Text style={{ fontSize: 10, fontWeight: '500', color: '#EA2831' }}>+5% vs last month</Text>
+            <AnimatedNumber value={totalExpenses.toFixed(2)} />
+            <Text style={{ fontSize: 10, fontWeight: '500', color: '#EA2831' }}>
+              {(() => {
+                const { expenseChange } = getMonthlyComparison();
+                const sign = expenseChange >= 0 ? '+' : '';
+                return `${sign}${expenseChange.toFixed(0)}% vs last month`;
+              })()}
+            </Text>
           </View>
         </View>
 
-        {/* Category Breakdown */}
-        <View style={{
-          backgroundColor: 'white',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 24,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 1,
-        }}>
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 16,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Category Breakdown</Text>
-            <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={{ flexDirection: 'column', gap: 24 }}>
-            <View style={{ alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <View style={{
-                width: 144,
-                height: 144,
-                borderRadius: 72,
-                position: 'relative',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <PieChart 
-                  size={144}
-                  strokeWidth={12}
-                  data={[
-                    { percentage: 45, color: '#EA2831' },
-                    { percentage: 30, color: '#8b5cf6' },
-                    { percentage: 25, color: '#06b6d4' }
-                  ]}
-                />
-                
-                <View style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 60,
-                  backgroundColor: 'white',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'absolute',
-                }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Total</Text>
-                  <AnimatedNumber value="1,245" />
-                </View>
-              </View>
-            </View>
-            
-            <View style={{ width: '100%', gap: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: '#fef2f2',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: '#fecaca',
-                  }}>
-                    <Ionicons name="car" size={16} color="#EA2831" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>Transport</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>45% of total</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 6, minWidth: 96 }}>
-                  <AnimatedNumber value="560.25" duration={1200} />
-                  <View style={{
-                    width: '100%',
-                    height: 6,
-                    backgroundColor: '#f1f5f9',
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                  }}>
-                    <Animated.View style={{ 
-                      height: '100%', 
-                      backgroundColor: '#EA2831', 
-                      borderRadius: 3,
-                      width: progressAnimations[0].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '45%']
-                      })
-                    }} />
-                  </View>
-                </View>
-              </View>
+        <CategoryBreakdown 
+          categoryBreakdown={categoryBreakdown}
+          incomeBreakdown={incomeBreakdown}
+          totalExpenses={totalExpenses}
+          totalIncome={totalIncome}
+          categoryIcons={categoryIcons}
+          categoryColors={categoryColors}
+        />
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: '#f3f4f6',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: '#e5e7eb',
-                  }}>
-                    <Ionicons name="bag" size={16} color="#8b5cf6" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>Shopping</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>30% of total</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 6, minWidth: 96 }}>
-                  <AnimatedNumber value="373.50" duration={1500} />
-                  <View style={{
-                    width: '100%',
-                    height: 6,
-                    backgroundColor: '#f1f5f9',
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                  }}>
-                    <Animated.View style={{ 
-                      height: '100%', 
-                      backgroundColor: '#8b5cf6', 
-                      borderRadius: 3,
-                      width: progressAnimations[1].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '30%']
-                      })
-                    }} />
-                  </View>
-                </View>
-              </View>
+        <SpendingTrends transactions={transactions} />
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: '#ecfeff',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: '#a5f3fc',
-                  }}>
-                    <Ionicons name="restaurant" size={16} color="#06b6d4" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>Food & Drink</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>25% of total</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 6, minWidth: 96 }}>
-                  <AnimatedNumber value="311.25" duration={1800} />
-                  <View style={{
-                    width: '100%',
-                    height: 6,
-                    backgroundColor: '#f1f5f9',
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                  }}>
-                    <Animated.View style={{ 
-                      height: '100%', 
-                      backgroundColor: '#06b6d4', 
-                      borderRadius: 3,
-                      width: progressAnimations[2].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '25%']
-                      })
-                    }} />
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Payment Methods */}
-        <View style={{
-          backgroundColor: 'white',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 24,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 1,
-        }}>
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 20,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Payment Methods</Text>
-            <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={{ gap: 20 }}>
-            <View style={{
-              backgroundColor: '#f8fafc',
-              borderRadius: 12,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: '#e2e8f0',
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: '#3b82f6',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="card" size={20} color="white" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>HDFC Credit Card</Text>
-                  <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>**** 4582 • Platinum</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4 }}>
-                <View>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Income</Text>
-                  <AnimatedNumber value="0.00" />
-                </View>
-                <View style={{ width: 1, height: 32, backgroundColor: '#e2e8f0' }} />
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Outgoing</Text>
-                  <AnimatedNumber value="1,250.40" />
-                </View>
-              </View>
-            </View>
-
-            <View style={{
-              backgroundColor: '#f8fafc',
-              borderRadius: 12,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: '#e2e8f0',
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: '#6366f1',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="business" size={20} color="white" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>HDFC Bank Saving</Text>
-                  <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>**** 8821 • Savings</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4 }}>
-                <View>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Income</Text>
-                  <AnimatedNumber value="2,500.00" />
-                </View>
-                <View style={{ width: 1, height: 32, backgroundColor: '#e2e8f0' }} />
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Outgoing</Text>
-                  <AnimatedNumber value="450.00" />
-                </View>
-              </View>
-            </View>
-
-            <View style={{
-              backgroundColor: '#f8fafc',
-              borderRadius: 12,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: '#e2e8f0',
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: '#10b981',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="cash" size={20} color="white" />
-                </View>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>Cash</Text>
-                    <View style={{
-                      backgroundColor: '#dcfce7',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#10b981' }}>On Track</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>Wallet & Petty Cash</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4 }}>
-                <View>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Income</Text>
-                  <AnimatedNumber value="500.00" />
-                </View>
-                <View style={{ width: 1, height: 32, backgroundColor: '#e2e8f0' }} />
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>Outgoing</Text>
-                  <AnimatedNumber value="325.50" />
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Spending Trends */}
-        <View style={{
-          backgroundColor: 'white',
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 1,
-        }}>
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 24,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Spending Trends</Text>
-            <TouchableOpacity style={{
-              backgroundColor: '#f1f5f9',
-              paddingHorizontal: 12,
-              paddingVertical: 4,
-              borderRadius: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-            }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#64748b' }}>Weekly</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'end', justifyContent: 'space-between', height: 160, gap: 12 }}>
-            {[
-              { day: 'Mon', height: 72, opacity: 0.4 },
-              { day: 'Tue', height: 104, opacity: 0.6 },
-              { day: 'Wed', height: 48, opacity: 0.3 },
-              { day: 'Thu', height: 136, opacity: 1 },
-              { day: 'Fri', height: 88, opacity: 0.5 },
-              { day: 'Sat', height: 120, opacity: 0.8 },
-              { day: 'Sun', height: 40, opacity: 0.2 },
-            ].map((bar, index) => (
-              <View key={index} style={{ flex: 1, alignItems: 'center', gap: 8, height: '100%', justifyContent: 'flex-end' }}>
-                <Animated.View style={{
-                  width: '100%',
-                  maxWidth: 24,
-                  backgroundColor: `rgba(234, 40, 49, ${bar.opacity})`,
-                  borderRadius: 4,
-                  height: barAnimations[index].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, bar.height]
-                  })
-                }} />
-                <Text style={{
-                  fontSize: 10,
-                  fontWeight: bar.day === 'Thu' ? 'bold' : '500',
-                  color: bar.day === 'Thu' ? '#0d121b' : '#64748b'
-                }}>{bar.day}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        <PaymentMethods transactions={transactions} />
 
         {/* Recent Transactions */}
-        <View style={{ marginBottom: 100 }}>
+        <View style={{ marginBottom: 200 }}>
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
@@ -608,159 +260,37 @@ export default function DashboardIndex() {
             paddingHorizontal: 4,
           }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/transactions')}>
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#EA2831' }}>See All</Text>
             </TouchableOpacity>
           </View>
           
           <View style={{ gap: 12 }}>
-            <TouchableOpacity 
-              onPress={() => router.push('/transactions/details')}
-              style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: 12,
-              padding: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 1,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(234, 42, 51, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="car" size={24} color="#ea2a33" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>Uber</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>Transport • 2:30 PM</Text>
-                </View>
+            {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
+              <TransactionCard
+                key={transaction.id}
+                transaction={transaction}
+                categoryIcons={categoryIcons}
+                categoryColors={categoryColors}
+              />
+            )) : (
+              <View style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 40,
+                paddingVertical: 100,
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}>
+                <Ionicons name="receipt-outline" size={48} color="#94a3b8" />
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>No transactions yet</Text>
+                <Text style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>Add your first transaction to get started</Text>
               </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>-$24.00</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => router.push('/transactions/details')}
-              style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: 12,
-              padding: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 1,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="restaurant" size={24} color="#10b981" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>Starbucks</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>Food & Drink • 8:15 AM</Text>
-                </View>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>-$6.50</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => router.push('/transactions/details')}
-              style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: 'white',
-              borderRadius: 16,
-              padding: 14,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 1,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(234, 42, 51, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="car-sport" size={24} color="#ea2a33" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>Shell Station</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>Fuel • Yesterday</Text>
-                </View>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>-$45.00</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => router.push('/transactions/details')}
-              style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: 'white',
-              borderRadius: 16,
-              padding: 14,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 1,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="bag" size={24} color="#9333ea" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>Target</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>Shopping • Yesterday</Text>
-                </View>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>-$67.00</Text>
-                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-              </View>
-            </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -788,9 +318,10 @@ export default function DashboardIndex() {
         <Ionicons name="add" size={28} color="white" />
       </TouchableOpacity>
 
-      <AddTransactionModal 
+      <TransactionModal 
         visible={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
+        onClose={() => setShowAddModal(false)}
+        onTransactionAdded={loadTransactionData}
       />
       
       <TransactionApprovalModal 

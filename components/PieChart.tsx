@@ -8,11 +8,18 @@ const PieChart = ({ size = 144, strokeWidth = 12, data }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   
-  const animatedValues = useRef(data.map(() => new Animated.Value(0))).current;
+  const animatedValues = useRef([]).current;
+  
+  // Ensure we have animated values for each data item
+  while (animatedValues.length < data.length) {
+    animatedValues.push(new Animated.Value(0));
+  }
   
   useEffect(() => {
-    const animations = animatedValues.map((anim, index) => 
-      Animated.timing(anim, {
+    if (data.length === 0) return;
+    
+    const animations = data.map((_, index) => 
+      Animated.timing(animatedValues[index], {
         toValue: 1,
         duration: 1000,
         delay: index * 300,
@@ -20,8 +27,8 @@ const PieChart = ({ size = 144, strokeWidth = 12, data }) => {
       })
     );
     
-    Animated.stagger(300, animations).start();
-  }, []);
+    Animated.parallel(animations).start();
+  }, [data]);
   
   let cumulativePercentage = 0;
   
@@ -30,6 +37,8 @@ const PieChart = ({ size = 144, strokeWidth = 12, data }) => {
       <Svg width={size} height={size}>
         <G rotation="-90" origin={`${size/2}, ${size/2}`}>
           {data.map((item, index) => {
+            if (!animatedValues[index]) return null;
+            
             const strokeDasharray = `${item.percentage * circumference / 100} ${circumference}`;
             const strokeDashoffset = -cumulativePercentage * circumference / 100;
             

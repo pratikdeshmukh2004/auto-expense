@@ -14,6 +14,10 @@ export default function BottomNavigation() {
 
   return (
     <View style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'center',
@@ -22,7 +26,6 @@ export default function BottomNavigation() {
       borderTopWidth: 1,
       borderTopColor: '#e2e8f0',
       paddingHorizontal: 10,
-      marginBottom: 10,
     }}>
       {tabs.map((tab) => {
         const isActive = pathname === tab.path;

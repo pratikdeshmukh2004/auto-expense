@@ -1,14 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { Image, ScrollView, Switch, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
+import { CategoryService } from '../../services/CategoryService';
+import { PaymentMethodService } from '../../services/PaymentMethodService';
 
 export default function SettingsIndex() {
   const [autoParsing, setAutoParsing] = useState(true);
   const [dailySummary, setDailySummary] = useState(true);
   const [overspendingAlerts, setOverspendingAlerts] = useState(false);
   const [faceIdLock, setFaceIdLock] = useState(false);
+  const [categoriesCount, setCategoriesCount] = useState(0);
+  const [paymentMethodsCount, setPaymentMethodsCount] = useState(0);
+
+  useEffect(() => {
+    loadBiometricSetting();
+    loadCounts();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadCounts();
+    }, [])
+  );
+
+  const loadCounts = async () => {
+    const categories = await CategoryService.getCategories();
+    const paymentMethods = await PaymentMethodService.getPaymentMethods();
+    setCategoriesCount(categories.length);
+    setPaymentMethodsCount(paymentMethods.length);
+  };
+
+  const loadBiometricSetting = async () => {
+    const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
+    setFaceIdLock(biometricEnabled === 'true');
+  };
+
+  const handleBiometricToggle = async (value: boolean) => {
+    setFaceIdLock(value);
+    await SecureStore.setItemAsync('biometric_enabled', value.toString());
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6' }}>
@@ -152,6 +185,90 @@ export default function SettingsIndex() {
           </Text>
         </View>
 
+        {/* Finance Management Section */}
+        <View style={{ marginBottom: 24 }}>
+          <Text style={{
+            paddingHorizontal: 24,
+            paddingVertical: 8,
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#9ca3af',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+          }}>Finance Management</Text>
+          
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            marginHorizontal: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
+          }}>
+            {/* Manage Categories */}
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f3f4f6',
+              }}
+              onPress={() => router.push('/settings/categories')}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="apps" size={20} color="#ec4899" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Manage Categories</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{categoriesCount} categories configured</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            {/* Payment Methods */}
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+              }}
+              onPress={() => router.push('/settings/payment-methods')}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="card" size={20} color="#10b981" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Payment Methods</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{paymentMethodsCount} methods configured</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Preferences Section */}
         <View style={{ marginBottom: 24 }}>
           <Text style={{
@@ -259,7 +376,7 @@ export default function SettingsIndex() {
             shadowRadius: 2,
             elevation: 1,
           }}>
-            {/* Face ID Toggle */}
+            {/* Biometric Lock Toggle */}
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -277,13 +394,15 @@ export default function SettingsIndex() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Ionicons name="scan" size={20} color="#22c55e" />
+                  <Ionicons name={Platform.OS === 'ios' ? 'scan' : 'finger-print'} size={20} color="#22c55e" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Face ID Lock</Text>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                  {Platform.OS === 'ios' ? 'Face ID Lock' : 'Biometric Lock'}
+                </Text>
               </View>
               <Switch
                 value={faceIdLock}
-                onValueChange={setFaceIdLock}
+                onValueChange={handleBiometricToggle}
                 trackColor={{ false: '#d1d5db', true: '#ea2a33' }}
                 thumbColor="white"
               />
@@ -412,7 +531,7 @@ export default function SettingsIndex() {
         </View>
 
         {/* Footer */}
-        <View style={{ paddingHorizontal: 24, alignItems: 'center', gap: 24, paddingBottom: 100 }}>
+        <View style={{ paddingHorizontal: 24, alignItems: 'center', gap: 24, paddingBottom: 20 }}>
           <TouchableOpacity 
             style={{
               width: '100%',
@@ -428,7 +547,7 @@ export default function SettingsIndex() {
               shadowRadius: 2,
               elevation: 1,
             }}
-            onPress={() => router.replace('/auth/login')}
+            onPress={() => router.replace('/auth/mpin')}
           >
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>Log Out</Text>
           </TouchableOpacity>

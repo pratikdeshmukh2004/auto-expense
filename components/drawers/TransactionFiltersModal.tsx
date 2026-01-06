@@ -2,24 +2,77 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, PanResponder, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { CategoryService } from '../../services/CategoryService';
+import { PaymentMethodService } from '../../services/PaymentMethodService';
+import { TransactionService } from '../../services/TransactionService';
 
 interface TransactionFiltersModalProps {
   visible: boolean;
   onClose: () => void;
   onApplyFilters: (filters: any) => void;
+  currentFilters?: {
+    period: string;
+    categories: string[];
+    payments: string[];
+    merchants: string[];
+  };
 }
 
-export default function TransactionFiltersModal({ visible, onClose, onApplyFilters }: TransactionFiltersModalProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState('Last 7 Days');
-  const [selectedCategories, setSelectedCategories] = useState(['Fuel']);
-  const [selectedPayments, setSelectedPayments] = useState(['Visa ••45']);
+export default function TransactionFiltersModal({ visible, onClose, onApplyFilters, currentFilters }: TransactionFiltersModalProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState('Today');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [customDate, setCustomDate] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [topMerchants, setTopMerchants] = useState<string[]>([]);
 
   const pan = useRef(new Animated.ValueXY()).current;
   
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
-  }, [visible]);
+    if (visible) {
+      loadData();
+      // Sync with current filters from parent
+      if (currentFilters) {
+        setSelectedPeriod(currentFilters.period);
+        setSelectedCategories(currentFilters.categories);
+        setSelectedPayments(currentFilters.payments);
+        setSelectedMerchants(currentFilters.merchants);
+      }
+    }
+  }, [visible, currentFilters]);
+
+  const loadData = async () => {
+    try {
+      const [categoriesData, paymentMethodsData, transactions] = await Promise.all([
+        CategoryService.getCategories(),
+        PaymentMethodService.getPaymentMethods(),
+        TransactionService.getTransactions()
+      ]);
+      
+      setCategories(categoriesData);
+      setPaymentMethods(paymentMethodsData);
+      
+      // Get top 5 merchants by frequency
+      const merchantCounts = transactions.reduce((acc: any, transaction: any) => {
+        if (transaction.merchant) {
+          acc[transaction.merchant] = (acc[transaction.merchant] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      const sortedMerchants = Object.entries(merchantCounts)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
+        .slice(0, 5)
+        .map(([merchant]) => merchant);
+      
+      setTopMerchants(sortedMerchants);
+    } catch (error) {
+      console.error('Error loading filter data:', error);
+    }
+  };
   
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -50,19 +103,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
     },
   });
 
-  const periods = ['Today', 'Last 7 Days', 'This Month'];
-  const categories = [
-    { id: 'fuel', name: 'Fuel', icon: 'car' },
-    { id: 'groceries', name: 'Groceries', icon: 'basket' },
-    { id: 'dining', name: 'Dining', icon: 'restaurant' },
-    { id: 'services', name: 'Services', icon: 'build' },
-    { id: 'online', name: 'Online', icon: 'wifi' }
-  ];
-  const payments = [
-    { id: 'visa', name: 'Visa ••45', icon: 'card' },
-    { id: 'apple', name: 'Apple Pay', icon: 'phone-portrait' },
-    { id: 'cash', name: 'Cash', icon: 'cash' }
-  ];
+  const periods = ['Today', 'Yesterday', 'This Week', 'Last 7 Days', 'This Month', 'Last Month', 'This Year', 'All Time', 'Custom Range'];
 
   const toggleCategory = (category: string) => {
     setSelectedCategories(prev => 
@@ -80,26 +121,36 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
     );
   };
 
+  const toggleMerchant = (merchant: string) => {
+    setSelectedMerchants(prev => 
+      prev.includes(merchant) 
+        ? prev.filter(m => m !== merchant)
+        : [...prev, merchant]
+    );
+  };
+
   const resetFilters = () => {
-    setSelectedPeriod('');
+    setSelectedPeriod('Today');
     setSelectedCategories([]);
     setSelectedPayments([]);
+    setSelectedMerchants([]);
     setCustomDate('');
   };
 
   const applyFilters = () => {
-    const activeFilters = selectedCategories.length + selectedPayments.length + (selectedPeriod ? 1 : 0);
+    const activeFilters = selectedCategories.length + selectedPayments.length + selectedMerchants.length + (selectedPeriod !== 'Today' ? 1 : 0);
     onApplyFilters({
       period: selectedPeriod,
       categories: selectedCategories,
       payments: selectedPayments,
+      merchants: selectedMerchants,
       customDate,
       count: activeFilters
     });
     onClose();
   };
 
-  const activeFiltersCount = selectedCategories.length + selectedPayments.length + (selectedPeriod ? 1 : 0);
+  const activeFiltersCount = selectedCategories.length + selectedPayments.length + selectedMerchants.length + (selectedPeriod !== 'Today' ? 1 : 0);
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -140,7 +191,10 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     ]}
                     onPress={() => setSelectedPeriod(period)}
                   >
-                    {selectedPeriod === period && (
+                    {period === 'Custom Range' && (
+                      <Ionicons name="calendar" size={18} color={selectedPeriod === period ? '#EA2831' : '#374151'} />
+                    )}
+                    {selectedPeriod === period && period !== 'Custom Range' && (
                       <Ionicons name="checkmark" size={18} color="#EA2831" />
                     )}
                     <Text style={[
@@ -152,24 +206,13 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-              
-              <View style={styles.customDateContainer}>
-                <TextInput
-                  style={styles.customDateInput}
-                  placeholder="Custom Date Range"
-                  value={customDate}
-                  onChangeText={setCustomDate}
-                  placeholderTextColor="#9ca3af"
-                />
-                <Ionicons name="calendar" size={20} color="#EA2831" style={styles.calendarIcon} />
-              </View>
             </View>
 
             <View style={styles.divider} />
 
-            {/* Expense Type */}
+            {/* Categories */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Expense Type</Text>
+              <Text style={styles.sectionTitle}>Categories</Text>
               <View style={styles.chipsWrap}>
                 {categories.map((category) => (
                   <TouchableOpacity
@@ -183,7 +226,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     <Ionicons 
                       name={category.icon as any} 
                       size={18} 
-                      color={selectedCategories.includes(category.name) ? '#EA2831' : '#9ca3af'} 
+                      color={selectedCategories.includes(category.name) ? category.color : '#9ca3af'} 
                     />
                     <Text style={[
                       styles.categoryChipText,
@@ -193,16 +236,23 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     </Text>
                   </TouchableOpacity>
                 ))}
+                <TouchableOpacity
+                  style={[styles.categoryChip, { borderStyle: 'dashed' }]}
+                  onPress={() => {/* Add category logic */}}
+                >
+                  <Ionicons name="add" size={18} color="#9ca3af" />
+                  <Text style={styles.categoryChipText}>Add New</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.divider} />
 
-            {/* Payment Method */}
+            {/* Payment Methods */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Paid via</Text>
+              <Text style={styles.sectionTitle}>Payment Methods</Text>
               <View style={styles.chipsWrap}>
-                {payments.map((payment) => (
+                {paymentMethods.map((payment) => (
                   <TouchableOpacity
                     key={payment.id}
                     style={[
@@ -214,7 +264,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     <Ionicons 
                       name={payment.icon as any} 
                       size={18} 
-                      color={selectedPayments.includes(payment.name) ? '#EA2831' : '#9ca3af'} 
+                      color={selectedPayments.includes(payment.name) ? payment.color : '#9ca3af'} 
                     />
                     <Text style={[
                       styles.categoryChipText,
@@ -224,8 +274,48 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     </Text>
                   </TouchableOpacity>
                 ))}
+                <TouchableOpacity
+                  style={[styles.categoryChip, { borderStyle: 'dashed' }]}
+                  onPress={() => {/* Add payment method logic */}}
+                >
+                  <Ionicons name="add" size={18} color="#9ca3af" />
+                  <Text style={styles.categoryChipText}>Add New</Text>
+                </TouchableOpacity>
               </View>
             </View>
+
+            <View style={styles.divider} />
+
+            {/* Top Merchants */}
+            {topMerchants.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Top Merchants</Text>
+                <View style={styles.chipsWrap}>
+                  {topMerchants.map((merchant) => (
+                    <TouchableOpacity
+                      key={merchant}
+                      style={[
+                        styles.categoryChip,
+                        selectedMerchants.includes(merchant) && styles.activeCategoryChip
+                      ]}
+                      onPress={() => toggleMerchant(merchant)}
+                    >
+                      <Ionicons 
+                        name="storefront" 
+                        size={18} 
+                        color={selectedMerchants.includes(merchant) ? '#EA2831' : '#9ca3af'} 
+                      />
+                      <Text style={[
+                        styles.categoryChipText,
+                        selectedMerchants.includes(merchant) && styles.activeCategoryChipText
+                      ]}>
+                        {merchant}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
 
           {/* Footer */}
@@ -251,58 +341,54 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   container: {
-    backgroundColor: '#f8f6f6',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    height: '85%',
-    overflow: 'hidden',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '90%',
   },
   dragHandle: {
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingVertical: 12,
   },
   handle: {
-    width: 48,
-    height: 6,
+    width: 40,
+    height: 4,
     backgroundColor: '#d1d5db',
-    borderRadius: 3,
+    borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontWeight: '600',
+    color: '#111827',
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 4,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   section: {
-    marginBottom: 32,
+    paddingVertical: 20,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1b0e0e',
-    marginBottom: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
   },
   chipsContainer: {
     marginBottom: 16,
@@ -310,131 +396,125 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
     borderRadius: 20,
-    backgroundColor: 'white',
+    marginRight: 8,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
-    marginRight: 12,
-    gap: 8,
+    borderColor: '#e5e7eb',
   },
   activeChip: {
-    backgroundColor: 'rgba(234, 42, 51, 0.1)',
+    backgroundColor: '#fef2f2',
     borderColor: '#EA2831',
   },
   chipText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
+    color: '#111827',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   activeChipText: {
     color: '#EA2831',
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
   customDateContainer: {
     position: 'relative',
   },
   customDateInput: {
-    height: 56,
-    paddingHorizontal: 20,
-    paddingRight: 48,
-    borderRadius: 16,
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#374151',
+    paddingRight: 40,
   },
   calendarIcon: {
     position: 'absolute',
-    right: 16,
-    top: 18,
+    right: 12,
+    top: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    gap: 8,
+    marginBottom: 8,
   },
   activeCategoryChip: {
-    backgroundColor: 'rgba(234, 42, 51, 0.1)',
+    backgroundColor: '#fef2f2',
     borderColor: '#EA2831',
   },
   categoryChipText: {
-    fontSize: 14,
+    fontSize: 13,
+    color: '#111827',
+    marginLeft: 6,
     fontWeight: '500',
-    color: '#6b7280',
   },
   activeCategoryChipText: {
     color: '#EA2831',
-    fontWeight: 'bold',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginBottom: 32,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    gap: 16,
+    borderTopColor: '#f3f4f6',
+    gap: 12,
   },
   resetButton: {
     flex: 1,
-    height: 56,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#d1d5db',
+    alignItems: 'center',
   },
   resetText: {
     fontSize: 16,
-    fontWeight: 'bold',
     color: '#6b7280',
+    fontWeight: '500',
   },
   applyButton: {
     flex: 2,
-    height: 56,
-    backgroundColor: '#EA2831',
-    borderRadius: 16,
     flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#EA2831',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   applyText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
+    color: '#fff',
+    fontWeight: '600',
   },
   badge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 12,
+    marginLeft: 8,
   },
   badgeText: {
     fontSize: 12,
-    color: 'white',
-    fontWeight: 'bold',
+    color: '#EA2831',
+    fontWeight: '600',
   },
 });

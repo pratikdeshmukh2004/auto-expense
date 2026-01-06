@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationParser } from '../../services/NotificationParser';
+import { TransactionService } from '../../services/TransactionService';
 
 export default function SmartParsing() {
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -12,14 +13,14 @@ export default function SmartParsing() {
     { email: 'receipts@gmail.com', lastSync: '14m ago', icon: 'mail' },
     { email: 'finance@work.com', lastSync: '2h ago', icon: 'briefcase' }
   ]);
-  const [recentMessages] = useState([
+  const [recentMessages, setRecentMessages] = useState([
     {
       id: '1',
       type: 'sms',
       sender: '+1-555-0192',
       time: '2h ago',
       message: 'Acct: 1234. Debit: $14.50 at WHOLEFDS MRKT on 24/10. Bal: $200.50',
-      merchant: 'Whole Foods',
+      merchant: 'Whole Foods Market',
       amount: '14.50',
       category: 'Groceries'
     },
@@ -29,11 +30,12 @@ export default function SmartParsing() {
       sender: 'receipts@netflix.com',
       time: '5h ago',
       message: 'Netflix.com Subscription payment of 15.99 USD processed on card ending 8899.',
-      merchant: 'Netflix',
+      merchant: 'Netflix.com',
       amount: '15.99',
       category: 'Entertainment'
     }
   ]);
+  const [editingFields, setEditingFields] = useState<{[key: string]: {merchant: string, amount: string, method: string}}>({});
 
   useEffect(() => {
     loadKeywords();
@@ -57,6 +59,50 @@ export default function SmartParsing() {
     const updatedKeywords = keywords.filter((_, i) => i !== index);
     setKeywords(updatedKeywords);
     await NotificationParser.saveKeywords(updatedKeywords);
+  };
+
+  const handleApprove = async (messageId: string) => {
+    const message = recentMessages.find(m => m.id === messageId);
+    if (!message) return;
+
+    const editedData = editingFields[messageId];
+    const transaction = {
+      merchant: editedData?.merchant || message.merchant,
+      amount: editedData?.amount || message.amount,
+      category: message.category,
+      paymentMethod: editedData?.method || 'Unknown',
+      date: new Date().toISOString().split('T')[0],
+      type: 'expense' as const,
+      status: 'completed' as const,
+      rawMessage: message.message
+    };
+
+    await TransactionService.addTransaction(transaction);
+    setRecentMessages(prev => prev.filter(m => m.id !== messageId));
+    setEditingFields(prev => {
+      const updated = { ...prev };
+      delete updated[messageId];
+      return updated;
+    });
+  };
+
+  const handleReject = (messageId: string) => {
+    setRecentMessages(prev => prev.filter(m => m.id !== messageId));
+    setEditingFields(prev => {
+      const updated = { ...prev };
+      delete updated[messageId];
+      return updated;
+    });
+  };
+
+  const updateField = (messageId: string, field: 'merchant' | 'amount' | 'method', value: string) => {
+    setEditingFields(prev => ({
+      ...prev,
+      [messageId]: {
+        ...prev[messageId],
+        [field]: value
+      }
+    }));
   };
 
   return (
@@ -96,9 +142,6 @@ export default function SmartParsing() {
                     </View>
                     <Text style={styles.smsSubtitle}>Automated parsing for text notifications</Text>
                   </View>
-                </View>
-                <View style={styles.lockIcon}>
-                  <Ionicons name="time" size={20} color="#EA2831" style={{ opacity: 0.5 }} />
                 </View>
               </View>
             </View>
@@ -228,7 +271,8 @@ export default function SmartParsing() {
                     <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Merchant</Text>
                     <TextInput
                       style={styles.inlineFieldInput}
-                      value={index === 0 ? 'Whole Foods Market' : 'Netflix.com'}
+                      value={editingFields[message.id]?.merchant || message.merchant}
+                      onChangeText={(value) => updateField(message.id, 'merchant', value)}
                       editable={true}
                     />
                   </View>
@@ -243,7 +287,8 @@ export default function SmartParsing() {
                     <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Amount</Text>
                     <TextInput
                       style={[styles.inlineFieldInput, { fontFamily: 'monospace' }]}
-                      value={index === 0 ? '14.50' : '15.99'}
+                      value={editingFields[message.id]?.amount || message.amount}
+                      onChangeText={(value) => updateField(message.id, 'amount', value)}
                       editable={true}
                     />
                   </View>
@@ -258,7 +303,8 @@ export default function SmartParsing() {
                     <Text style={[styles.inlineFieldLabel, { color: '#64748b' }]}>Method</Text>
                     <TextInput
                       style={styles.inlineFieldInput}
-                      value={index === 0 ? 'Visa ending 1234' : 'card ending 8899'}
+                      value={editingFields[message.id]?.method || (index === 0 ? 'Visa ending 1234' : 'card ending 8899')}
+                      onChangeText={(value) => updateField(message.id, 'method', value)}
                       editable={true}
                     />
                   </View>
@@ -268,11 +314,11 @@ export default function SmartParsing() {
             </View>
 
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity style={styles.rejectButton}>
+              <TouchableOpacity style={styles.rejectButton} onPress={() => handleReject(message.id)}>
                 <Ionicons name="ban" size={18} color="#EA2831" />
                 <Text style={styles.rejectText}>Reject</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.approveButton}>
+              <TouchableOpacity style={styles.approveButton} onPress={() => handleApprove(message.id)}>
                 <Ionicons name="checkmark-circle" size={18} color="white" />
                 <Text style={styles.approveText}>Approve</Text>
               </TouchableOpacity>
