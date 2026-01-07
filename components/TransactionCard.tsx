@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Transaction } from '../services/TransactionService';
 import { getRelativeTime } from '../utils/dateUtils';
 
@@ -33,7 +33,7 @@ export default function TransactionCard({
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 1,
-        marginBottom: 12,
+        marginBottom: 4,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>

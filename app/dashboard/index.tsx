@@ -11,7 +11,6 @@ import SpendingTrends from '../../components/SpendingTrends';
 import TransactionCard from '../../components/TransactionCard';
 import { CategoryService } from '../../services/CategoryService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
-import { getRelativeTime } from '../../utils/dateUtils';
 
 const AnimatedNumber = ({ value, prefix = '₹', suffix = '' }) => {
   return (
@@ -299,7 +298,7 @@ export default function DashboardIndex() {
       <TouchableOpacity 
         style={{
           position: 'absolute',
-          bottom: 96,
+          bottom: 125,
           right: 16,
           width: 56,
           height: 56,

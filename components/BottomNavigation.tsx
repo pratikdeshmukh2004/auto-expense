@@ -2,9 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BottomNavigation() {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
   const tabs = [
     { name: 'Dashboard', icon: 'grid', path: '/dashboard' },
@@ -21,11 +23,12 @@ export default function BottomNavigation() {
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'center',
-      height: 64,
+      height: insets.bottom > 20 ? 64 + insets.bottom : 64,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderTopWidth: 1,
       borderTopColor: '#e2e8f0',
       paddingHorizontal: 10,
+      paddingBottom: insets.bottom > 20 ? insets.bottom : 0,
     }}>
       {tabs.map((tab) => {
         const isActive = pathname === tab.path;

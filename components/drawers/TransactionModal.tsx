@@ -30,6 +30,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const isEditMode = !!transaction;
 
@@ -165,7 +166,8 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView 
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        enabled={false}
       >
         <View 
           style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' }}
@@ -181,7 +183,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
             shadowOpacity: 0.15,
             shadowRadius: 30,
             elevation: 20,
-            paddingBottom: 80,
+            paddingBottom: 120,
             transform: [{ translateY: pan.y }],
           }}
         >
@@ -270,7 +272,13 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
             </View>
           </View>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView 
+            ref={scrollViewRef}
+            style={{ flex: 1 }} 
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={{ paddingBottom: 200 }} 
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Amount Input */}
             <View style={{
               alignItems: 'center',
@@ -360,6 +368,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
                     placeholderTextColor="#9ca3af"
                     value={description}
                     onChangeText={setDescription}
+                    maxLength={30}
                   />
                   <TouchableOpacity 
                     style={{ paddingRight: 16, paddingLeft: 8 }}
@@ -644,6 +653,16 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
                   placeholderTextColor="#9ca3af"
                   value={notes}
                   onChangeText={setNotes}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true });
+                    }, 100);
+                  }}
+                  onSubmitEditing={() => {
+                    // This allows keyboard to be dismissed
+                  }}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
                   multiline
                 />
               </View>

@@ -250,6 +250,7 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
               placeholderTextColor="#9ca3af"
               value={name}
               onChangeText={setName}
+              maxLength={25}
             />
           </View>
 

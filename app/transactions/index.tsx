@@ -1,15 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Animated, PanResponder, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import TransactionModal from '../../components/drawers/TransactionModal';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, PanResponder, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import TransactionFiltersModal from '../../components/drawers/TransactionFiltersModal';
-import TransactionCard from '../../components/TransactionCard';
-import { TransactionService, Transaction } from '../../services/TransactionService';
+import TransactionModal from '../../components/drawers/TransactionModal';
 import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
-import { getRelativeTime } from '../../utils/dateUtils';
+import { Transaction, TransactionService } from '../../services/TransactionService';
 
 
 
@@ -624,7 +622,7 @@ export default function TransactionsIndex() {
       <TouchableOpacity 
         style={{
           position: 'absolute',
-          bottom: 96,
+          bottom: 125,
           right: 20,
           width: 56,
           height: 56,

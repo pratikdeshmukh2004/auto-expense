@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Image, ScrollView, Switch, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { Image, ScrollView, Switch, Text, TouchableOpacity, View, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
+import SettingsBottomSheet from '../../components/SettingsBottomSheet';
 
 export default function SettingsIndex() {
   const [autoParsing, setAutoParsing] = useState(true);
@@ -14,6 +15,9 @@ export default function SettingsIndex() {
   const [faceIdLock, setFaceIdLock] = useState(false);
   const [categoriesCount, setCategoriesCount] = useState(0);
   const [paymentMethodsCount, setPaymentMethodsCount] = useState(0);
+  const [showPrivacySheet, setShowPrivacySheet] = useState(false);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
+  const [showAboutSheet, setShowAboutSheet] = useState(false);
 
   useEffect(() => {
     loadBiometricSetting();
@@ -41,6 +45,17 @@ export default function SettingsIndex() {
   const handleBiometricToggle = async (value: boolean) => {
     setFaceIdLock(value);
     await SecureStore.setItemAsync('biometric_enabled', value.toString());
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/auth/mpin') }
+      ]
+    );
   };
 
   return (
@@ -409,12 +424,15 @@ export default function SettingsIndex() {
             </View>
 
             {/* Privacy & Permissions */}
-            <TouchableOpacity style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 16,
-            }}>
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+              }}
+              onPress={() => setShowPrivacySheet(true)}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <View style={{
                   width: 40,
@@ -456,14 +474,17 @@ export default function SettingsIndex() {
             elevation: 1,
           }}>
             {/* Help Center */}
-            <TouchableOpacity style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 16,
-              borderBottomWidth: 1,
-              borderBottomColor: '#f3f4f6',
-            }}>
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f3f4f6',
+              }}
+              onPress={() => setShowHelpSheet(true)}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <View style={{
                   width: 40,
@@ -481,14 +502,15 @@ export default function SettingsIndex() {
             </TouchableOpacity>
 
             {/* About Us */}
-            <TouchableOpacity style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 16,
-              borderBottomWidth: 1,
-              borderBottomColor: '#f3f4f6',
-            }}>
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+              }}
+              onPress={() => setShowAboutSheet(true)}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <View style={{
                   width: 40,
@@ -504,34 +526,11 @@ export default function SettingsIndex() {
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
-
-            {/* Rate the App */}
-            <TouchableOpacity style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 16,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="star" size={20} color="#f59e0b" />
-                </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Rate the App</Text>
-              </View>
-              <Ionicons name="open" size={20} color="#9ca3af" />
-            </TouchableOpacity>
           </View>
         </View>
 
         {/* Footer */}
-        <View style={{ paddingHorizontal: 24, alignItems: 'center', gap: 24, paddingBottom: 20 }}>
+        <View style={{ paddingHorizontal: 24, alignItems: 'center', gap: 24, paddingBottom: 120 }}>
           <TouchableOpacity 
             style={{
               width: '100%',
@@ -547,7 +546,7 @@ export default function SettingsIndex() {
               shadowRadius: 2,
               elevation: 1,
             }}
-            onPress={() => router.replace('/auth/mpin')}
+            onPress={handleLogout}
           >
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>Log Out</Text>
           </TouchableOpacity>
@@ -558,6 +557,238 @@ export default function SettingsIndex() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Bottom Sheets */}
+      <SettingsBottomSheet
+        visible={showPrivacySheet}
+        onClose={() => setShowPrivacySheet(false)}
+        title="Privacy & Permissions"
+      >
+        <View style={{ paddingBottom: 40 }}>
+          {/* Privacy Hero */}
+          <View style={{ alignItems: 'center', marginBottom: 32, padding: 20, backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: 16 }}>
+            <View style={{
+              width: 60,
+              height: 60,
+              borderRadius: 30,
+              backgroundColor: '#10b981',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+            }}>
+              <Ionicons name="shield-checkmark" size={28} color="white" />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' }}>Your Data Stays Private</Text>
+            <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: 8 }}>100% local processing • Zero cloud storage</Text>
+          </View>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>🔒 Data Privacy Commitment</Text>
+          <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+            <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 22 }}>
+              Your financial data never leaves your device. All transaction parsing, categorization, and analysis happens locally. We don't collect, store, or transmit any personal or financial information to external servers.
+            </Text>
+          </View>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>📱 Required Permissions</Text>
+          <View style={{ gap: 16, marginBottom: 24 }}>
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(234, 40, 49, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="mail" size={20} color="#ea2a33" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>SMS Access</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18 }}>Read transaction notifications from banks and payment apps to automatically parse expense details</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <Ionicons name="checkmark-circle" size={12} color="#10b981" />
+                    <Text style={{ fontSize: 10, color: '#10b981', fontWeight: '500' }}>READ ONLY • NO SENDING</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="notifications" size={20} color="#9333ea" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>Notifications</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18 }}>Send daily spending summaries and budget alerts to help you stay on track</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <Ionicons name="time" size={12} color="#9333ea" />
+                    <Text style={{ fontSize: 10, color: '#9333ea', fontWeight: '500' }}>DAILY AT 8:00 PM</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="finger-print" size={20} color="#22c55e" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>Biometric Authentication</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18 }}>Secure app access with Face ID, Touch ID, or fingerprint for enhanced security</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <Ionicons name="lock-closed" size={12} color="#22c55e" />
+                    <Text style={{ fontSize: 10, color: '#22c55e', fontWeight: '500' }}>DEVICE SECURE ELEMENT</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>🛡️ Security Features</Text>
+          <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Ionicons name="phone-portrait" size={16} color="#10b981" />
+                <Text style={{ fontSize: 14, color: '#1f2937' }}>Local data storage only</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Ionicons name="shield" size={16} color="#10b981" />
+                <Text style={{ fontSize: 14, color: '#1f2937' }}>End-to-end encryption</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Ionicons name="eye-off" size={16} color="#10b981" />
+                <Text style={{ fontSize: 14, color: '#1f2937' }}>No tracking or analytics</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Ionicons name="server" size={16} color="#10b981" />
+                <Text style={{ fontSize: 14, color: '#1f2937' }}>No external servers</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </SettingsBottomSheet>
+      
+      <SettingsBottomSheet
+        visible={showHelpSheet}
+        onClose={() => setShowHelpSheet(false)}
+        title="Help Center"
+      >
+        <View style={{ paddingBottom: 40 }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Frequently Asked Questions</Text>
+          
+          <View style={{ gap: 20 }}>
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 }}>How does auto-parsing work?</Text>
+              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>The app reads SMS and email notifications from banks and automatically extracts transaction details like amount, merchant, and category.</Text>
+            </View>
+            
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 }}>Is my data secure?</Text>
+              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>Yes, all data is processed locally on your device. No transaction information is sent to external servers or stored in the cloud.</Text>
+            </View>
+            
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 }}>How do I add custom categories?</Text>
+              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>Go to Settings > Manage Categories and tap the "+" button to create new expense categories with custom icons and colors.</Text>
+            </View>
+            
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 }}>Can I export my data?</Text>
+              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>Data export functionality is coming in a future update. Currently, all data is stored locally on your device.</Text>
+            </View>
+          </View>
+          
+          <View style={{ marginTop: 32, padding: 16, backgroundColor: 'rgba(234, 40, 49, 0.1)', borderRadius: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#ea2a33', marginBottom: 8 }}>Need more help?</Text>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Contact us at pratikdeshmukhlobhi@gmail.com for additional support.</Text>
+          </View>
+        </View>
+      </SettingsBottomSheet>
+      
+      <SettingsBottomSheet
+        visible={showAboutSheet}
+        onClose={() => setShowAboutSheet(false)}
+        title="About Us"
+      >
+        <View style={{ paddingBottom: 40 }}>
+          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                marginBottom: 16,
+              }}
+            />
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>Auto Expense</Text>
+            <Text style={{ fontSize: 14, color: '#6b7280' }}>Version 1.0.4</Text>
+          </View>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Our Mission</Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 20 }}>
+            We believe managing personal finances should be effortless and secure. Auto Expense automatically tracks your spending while keeping your data completely private.
+          </Text>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Features</Text>
+          <View style={{ gap: 12, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={{ fontSize: 14, color: '#6b7280' }}>Automatic transaction parsing</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={{ fontSize: 14, color: '#6b7280' }}>Smart expense categorization</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={{ fontSize: 14, color: '#6b7280' }}>Local data processing</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={{ fontSize: 14, color: '#6b7280' }}>Biometric security</Text>
+            </View>
+          </View>
+          
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Developer</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <Image
+              source={{ uri: 'https://avatars.githubusercontent.com/u/44018192?v=4' }}
+              style={{ width: 40, height: 40, borderRadius: 20 }}
+            />
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937' }}>Pratik Deshmukh</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>Programmer Analyst</Text>
+            </View>
+          </View>
+          
+          <View style={{ padding: 16, backgroundColor: '#f3f4f6', borderRadius: 12 }}>
+            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>
+              Built with React Native & Expo
+            </Text>
+            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', marginTop: 4 }}>
+              Made with ❤️ for privacy-conscious users
+            </Text>
+          </View>
+        </View>
+      </SettingsBottomSheet>
     </SafeAreaView>
   );
 }

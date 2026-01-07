@@ -251,6 +251,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
               placeholderTextColor="#9ca3af"
               value={name}
               onChangeText={setName}
+              maxLength={20}
             />
           </View>
 
