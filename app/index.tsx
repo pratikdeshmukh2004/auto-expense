@@ -4,16 +4,65 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SplashScreen from '../components/SplashScreen';
+import { AuthService } from '../services/AuthService';
 
 export default function LandingPage() {
   const [showSplash, setShowSplash] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const handleSplashFinish = () => {
+    setShowSplash(false);
+    setIsChecking(true);
+    checkAuthStatus();
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      const isLoggedIn = await AuthService.isLoggedIn();
+      const userInfo = await AuthService.getUserInfo();
+      const hasMpin = await AuthService.getMpin();
+      
+      console.log('Auth check:', { isLoggedIn, userInfo: !!userInfo, hasMpin: !!hasMpin });
+      
+      if (isLoggedIn && userInfo && hasMpin) {
+        // User is fully set up, go to MPIN
+        console.log('Redirecting to MPIN');
+        router.replace('/auth/mpin');
+        return;
+      } else if (isLoggedIn && userInfo && !hasMpin) {
+        // User logged in but no MPIN, go to generate MPIN
+        console.log('Redirecting to generate MPIN');
+        router.replace('/auth/generate-mpin');
+        return;
+      }
+      console.log('Showing landing page');
+      // Otherwise show landing page
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const handleGetStarted = () => {
     router.push('/auth/login');
   };
 
   if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
+
+  if (isChecking) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f8f6f6', justifyContent: 'center', alignItems: 'center' }}>
+        <Image 
+          source={require('../assets/images/logo.png')} 
+          style={{ width: 100, height: 100, marginBottom: 24 }}
+          resizeMode="contain"
+        />
+        <Text style={{ fontSize: 16, color: '#64748b' }}>Loading...</Text>
+      </View>
+    );
   }
 
   return (

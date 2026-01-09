@@ -63,6 +63,17 @@ export default function MPINScreen() {
     const storedMpin = await SecureStore.getItemAsync('user_mpin') || '1234';
     
     if (enteredMpin === storedMpin) {
+      // Ensure user info is available after MPIN verification
+      const userInfo = await SecureStore.getItemAsync('user_info');
+      if (!userInfo) {
+        // If no user info exists, create default user
+        const defaultUser = {
+          id: 'default_user',
+          name: 'User',
+          email: 'user@example.com',
+        };
+        await SecureStore.setItemAsync('user_info', JSON.stringify(defaultUser));
+      }
       router.replace('/dashboard');
     } else {
       Alert.alert('Invalid MPIN', 'Please try again');
@@ -106,6 +117,17 @@ export default function MPINScreen() {
       });
 
       if (result.success) {
+        // Ensure user info is available after biometric authentication
+        const userInfo = await SecureStore.getItemAsync('user_info');
+        if (!userInfo) {
+          // If no user info exists, create default user
+          const defaultUser = {
+            id: 'default_user',
+            name: 'User',
+            email: 'user@example.com',
+          };
+          await SecureStore.setItemAsync('user_info', JSON.stringify(defaultUser));
+        }
         router.replace('/dashboard');
       }
     } catch (error) {
@@ -224,14 +246,14 @@ export default function MPINScreen() {
         {renderDots()}
         {renderKeypad()}
 
-        <View style={styles.footer}>
+        {/* <View style={styles.footer}>
           <TouchableOpacity onPress={handleForgotMpin}>
             <Text style={styles.forgotMpin}>Forgot MPIN?</Text>
           </TouchableOpacity>
           <TouchableOpacity>
             <Text style={styles.switchAccount}>Switch Account</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
     </View>
   );
@@ -265,11 +287,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingVertical: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   logoContainer: {
     width: 64,
@@ -300,7 +322,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 48,
+    marginBottom: 32,
   },
   dot: {
     width: 16,

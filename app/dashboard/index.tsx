@@ -9,6 +9,7 @@ import TransactionModal from '../../components/drawers/TransactionModal';
 import PaymentMethods from '../../components/PaymentMethods';
 import SpendingTrends from '../../components/SpendingTrends';
 import TransactionCard from '../../components/TransactionCard';
+import { AuthService } from '../../services/AuthService';
 import { CategoryService } from '../../services/CategoryService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
 
@@ -33,12 +34,21 @@ export default function DashboardIndex() {
   const [categoryIcons, setCategoryIcons] = useState<{[key: string]: string}>({});
   const [categoryColors, setCategoryColors] = useState<{[key: string]: string}>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState('User');
   
   useEffect(() => {
     const now = new Date();
     setCurrentDate(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
     loadTransactionData();
+    loadUserInfo();
   }, []);
+
+  const loadUserInfo = async () => {
+    const userInfo = await AuthService.getUserInfo();
+    if (userInfo?.name) {
+      setUserName(userInfo.name.split(' ')[0]); // Use first name only
+    }
+  };
 
   const loadTransactionData = async () => {
     try {
@@ -120,7 +130,7 @@ export default function DashboardIndex() {
       }}>
         <View>
           <Text style={{ fontSize: 14, color: '#64748b', fontWeight: '500' }}>{currentDate}</Text>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>Good Morning, Pratik</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>Good Morning, {userName}</Text>
         </View>
         <TouchableOpacity 
           style={{

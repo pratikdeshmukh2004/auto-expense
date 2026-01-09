@@ -15,19 +15,21 @@ export default function RootLayout() {
   const [isChecking, setIsChecking] = useState(true);
   
   useEffect(() => {
+    initializeServices();
     checkAuth();
-    initializeNotificationParser();
   }, []);
+
+  const initializeServices = async () => {
+    await AuthService.initialize();
+    await NotificationParser.startListening();
+  };
 
   const initializeNotificationParser = async () => {
     await NotificationParser.startListening();
   };
   
   const checkAuth = async () => {
-    const isLoggedIn = await AuthService.isLoggedIn();
-    if (isLoggedIn && pathname === '/') {
-      router.replace('/auth/mpin');
-    }
+    // Remove automatic redirect from layout since index.tsx handles it
     setIsChecking(false);
   };
   

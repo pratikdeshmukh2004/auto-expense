@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Expense - Smart Expense Tracking</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        header { background: #EA2831; color: white; padding: 1rem 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        nav a { color: white; text-decoration: none; margin-left: 2rem; }
+        .hero { background: linear-gradient(135deg, #f8f6f6 0%, #e8e6e6 100%); padding: 4rem 0; text-align: center; }
+        .hero h1 { font-size: 3rem; margin-bottom: 1rem; color: #EA2831; }
+        .hero p { font-size: 1.2rem; color: #666; margin-bottom: 2rem; }
+        .cta-button { background: #EA2831; color: white; padding: 1rem 2rem; border: none; border-radius: 8px; font-size: 1.1rem; text-decoration: none; display: inline-block; }
+        .features { padding: 4rem 0; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        .feature { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .feature h3 { color: #EA2831; margin-bottom: 1rem; }
+        footer { background: #333; color: white; padding: 2rem 0; text-align: center; }
+        .section-title { text-align: center; font-size: 2.5rem; margin-bottom: 1rem; color: #EA2831; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">💰 Auto Expense</div>
+                <nav>
+                    <a href="#features">Features</a>
+                    <a href="privacy.html">Privacy Policy</a>
+                    <a href="mailto:pratikdeshmukhlobhi@gmail.com">Contact</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Smart Expense Tracking</h1>
+            <p>Automatically parse transaction notifications and categorize your expenses with complete privacy</p>
+            <a href="#features" class="cta-button">Learn More</a>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Key Features</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <h3>🔐 Secure Authentication</h3>
+                    <p>4-digit MPIN and biometric login (Face ID/Fingerprint) for quick and secure access to your financial data.</p>
+                </div>
+                <div class="feature">
+                    <h3>📊 Smart Dashboard</h3>
+                    <p>Visual spending summaries, category breakdowns, and spending trends to understand your financial habits.</p>
+                </div>
+                <div class="feature">
+                    <h3>🤖 Auto-Parsing</h3>
+                    <p>Automatically reads SMS and email notifications to extract transaction details and categorize expenses.</p>
+                </div>
+                <div class="feature">
+                    <h3>💳 Transaction Management</h3>
+                    <p>Manual entry, edit/duplicate transactions, and comprehensive transaction details with insights.</p>
+                </div>
+                <div class="feature">
+                    <h3>🔒 Privacy First</h3>
+                    <p>All data processed locally on your device. No cloud storage, no data transmission to external servers.</p>
+                </div>
+                <div class="feature">
+                    <h3>⚙️ Customizable</h3>
+                    <p>Manage categories, payment methods, and bank keywords for better transaction parsing accuracy.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="background: #f8f6f6; padding: 4rem 0;">
+        <div class="container" style="text-align: center;">
+            <h2 class="section-title">Built with Privacy in Mind</h2>
+            <p style="font-size: 1.1rem; color: #666; max-width: 600px; margin: 0 auto;">
+                Your financial data never leaves your device. All transaction parsing, categorization, and analysis happens locally. 
+                We don't collect, store, or transmit any personal or financial information.
+            </p>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Auto Expense. Built with ❤️ by Pratik Deshmukh</p>
+            <p style="margin-top: 0.5rem;">
+                <a href="privacy.html" style="color: #ccc;">Privacy Policy</a> | 
+                <a href="mailto:pratikdeshmukhlobhi@gmail.com" style="color: #ccc;">Contact</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

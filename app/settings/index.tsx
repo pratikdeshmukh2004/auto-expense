@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Image, ScrollView, Switch, Text, TouchableOpacity, View, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import { AuthService } from '../../services/AuthService';
 import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
 import SettingsBottomSheet from '../../components/SettingsBottomSheet';
@@ -18,11 +19,18 @@ export default function SettingsIndex() {
   const [showPrivacySheet, setShowPrivacySheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [showAboutSheet, setShowAboutSheet] = useState(false);
+  const [userInfo, setUserInfo] = useState<{name: string; email: string; photo?: string} | null>(null);
 
   useEffect(() => {
     loadBiometricSetting();
     loadCounts();
+    loadUserInfo();
   }, []);
+
+  const loadUserInfo = async () => {
+    const user = await AuthService.getUserInfo();
+    setUserInfo(user);
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -47,13 +55,38 @@ export default function SettingsIndex() {
     await SecureStore.setItemAsync('biometric_enabled', value.toString());
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Log Out',
       'Are you sure you want to log out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/auth/mpin') }
+        { 
+          text: 'Log Out', 
+          style: 'destructive', 
+          onPress: async () => {
+            await AuthService.logout();
+            router.replace('/auth/mpin');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete all your data including transactions, categories, and settings. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Account', 
+          style: 'destructive', 
+          onPress: async () => {
+            await AuthService.deleteAccount();
+            router.replace('/');
+          }
+        }
       ]
     );
   };
@@ -78,16 +111,24 @@ export default function SettingsIndex() {
         {/* Profile Section */}
         <View style={{ paddingHorizontal: 16, paddingVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
           <View style={{ position: 'relative' }}>
-            <Image
-              source={{ uri: 'https://avatars.githubusercontent.com/u/44018192?v=4' }}
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                borderWidth: 2,
-                borderColor: 'white',
-              }}
-            />
+            <View style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: '#EA2831',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: 'white',
+            }}>
+              <Text style={{
+                color: 'white',
+                fontSize: 24,
+                fontWeight: 'bold',
+              }}>
+                {userInfo?.name ? userInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+              </Text>
+            </View>
             <View style={{
               position: 'absolute',
               bottom: 0,
@@ -101,8 +142,8 @@ export default function SettingsIndex() {
             }} />
           </View>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Pratik Deshmukh</Text>
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>pratikdeshmukhlobhi@gmail.com</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>{userInfo?.name || 'User'}</Text>
+            <Text style={{ fontSize: 14, color: '#6b7280' }}>{userInfo?.email || 'user@example.com'}</Text>
           </View>
         </View>
 
@@ -545,10 +586,30 @@ export default function SettingsIndex() {
               shadowOpacity: 0.05,
               shadowRadius: 2,
               elevation: 1,
+              marginBottom: 12,
             }}
             onPress={handleLogout}
           >
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>Log Out</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={{
+              width: '100%',
+              paddingVertical: 16,
+              borderRadius: 12,
+              backgroundColor: '#dc2626',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
+              marginBottom: 24,
+            }}
+            onPress={handleDeleteAccount}
+          >
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>Delete My Account</Text>
           </TouchableOpacity>
 
           <View style={{ alignItems: 'center' }}>

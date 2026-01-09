@@ -1,21 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
-import { StatusBar, Text, TouchableOpacity, View, Image } from 'react-native';
+import React, { useState } from 'react';
+import { StatusBar, Text, TouchableOpacity, View, Image, ActivityIndicator, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleIcon } from '../../components/GoogleIcon';
 import { AuthService } from '../../services/AuthService';
 
 export default function LoginScreen() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
   const handleLogin = async () => {
-    const success = await AuthService.login('user@example.com', 'password');
-    if (success) {
+    setIsLoading(true);
+    try {
+      const success = await AuthService.googleSignIn();
+      if (success) {
+        const hasMpin = await AuthService.getMpin();
+        if (hasMpin) {
+          router.replace('/auth/mpin');
+        } else {
+          router.replace('/auth/generate-mpin');
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSkip = () => {
+    setShowSkipModal(true);
+  };
+
+  const handleSkipSubmit = async () => {
+    if (name.trim() && email.trim()) {
+      const demoUser = {
+        id: 'demo_user',
+        name: name.trim(),
+        email: email.trim(),
+      };
+      
+      await AuthService.login(email.trim(), 'demo');
+      await AuthService.setUserInfo(demoUser);
+      
       const hasMpin = await AuthService.getMpin();
       if (hasMpin) {
         router.replace('/auth/mpin');
       } else {
         router.replace('/auth/generate-mpin');
       }
+      
+      setShowSkipModal(false);
+      setName('');
+      setEmail('');
     }
   };
 
@@ -105,14 +145,43 @@ export default function LoginScreen() {
             }}
             activeOpacity={0.8}
             onPress={handleLogin}
+            disabled={isLoading}
           >
-            <GoogleIcon />
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#374151" />
+            ) : (
+              <>
+                <GoogleIcon />
+                <Text style={{
+                  color: '#374151',
+                  fontWeight: 'bold',
+                  fontSize: 16,
+                }}>
+                  Continue with Google
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={{
+              width: '100%',
+              height: 48,
+              borderRadius: 12,
+              backgroundColor: 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+            }}
+            activeOpacity={0.8}
+            onPress={handleSkip}
+          >
             <Text style={{
-              color: '#374151',
-              fontWeight: 'bold',
+              color: '#64748b',
+              fontWeight: '500',
               fontSize: 16,
             }}>
-              Continue with Google
+              Skip for now
             </Text>
           </TouchableOpacity>
           
@@ -126,6 +195,104 @@ export default function LoginScreen() {
           </Text>
         </View>
       </View>
+      
+      <Modal
+        visible={showSkipModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          paddingHorizontal: 24,
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            padding: 24,
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#1f2937',
+              marginBottom: 8,
+              textAlign: 'center',
+            }}>Enter Your Details</Text>
+            
+            <Text style={{
+              fontSize: 14,
+              color: '#6b7280',
+              marginBottom: 24,
+              textAlign: 'center',
+            }}>We'll use this to personalize your experience</Text>
+            
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#d1d5db',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                marginBottom: 16,
+              }}
+              placeholder="Your Name"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+            
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#d1d5db',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                marginBottom: 24,
+              }}
+              placeholder="Your Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 8,
+                  backgroundColor: '#f3f4f6',
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setShowSkipModal(false);
+                  setName('');
+                  setEmail('');
+                }}
+              >
+                <Text style={{ color: '#6b7280', fontWeight: '500' }}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 8,
+                  backgroundColor: '#EA2831',
+                  alignItems: 'center',
+                }}
+                onPress={handleSkipSubmit}
+                disabled={!name.trim() || !email.trim()}
+              >
+                <Text style={{ color: 'white', fontWeight: '500' }}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
