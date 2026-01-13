@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { Image, ScrollView, Switch, Text, TouchableOpacity, View, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import SettingsBottomSheet from '../../components/SettingsBottomSheet';
 import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
-import SettingsBottomSheet from '../../components/SettingsBottomSheet';
 
 import { AuthService } from '../../services/AuthService';
 
@@ -105,43 +105,122 @@ export default function SettingsIndex() {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
         {isGuest ? (
-          <TouchableOpacity 
-            style={{ 
-              margin: 16, 
-              padding: 16, 
-              backgroundColor: '#fff7ed', // orange-50
-              borderRadius: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderWidth: 1,
-              borderColor: '#fdba74', // orange-300
-              shadowColor: '#ea2a33',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 2,
-            }}
-            onPress={async () => {
-              await AuthService.logout(); 
-              router.replace('/auth/login');
-            }}
-          >
-            <View style={{ flex: 1, gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="warning" size={20} color="#ea580c" />
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#9a3412' }}>
-                  Guest Account Active
-                </Text>
+          <View style={{ marginBottom: 24 }}>
+            {/* Guest Header */}
+            <View style={{ paddingHorizontal: 24, paddingVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: '#e2e8f0', // slate-200
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: 'white',
+              }}>
+                <Ionicons name="person" size={32} color="#94a3b8" />
               </View>
-              <Text style={{ fontSize: 13, color: '#9a3412', lineHeight: 18 }}>
-                Your data is <Text style={{fontWeight: 'bold'}}>not secure</Text>. It is stored only on this device. If you delete the app, your data will be <Text style={{fontWeight: 'bold'}}>permanently lost</Text>.
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#ea580c', marginTop: 4 }}>
-                Sign In to secure your data →
-              </Text>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Guest User</Text>
+                <Text style={{ fontSize: 14, color: '#6b7280' }}>Local Mode</Text>
+              </View>
             </View>
-          </TouchableOpacity>
+
+            {/* Security Update Card */}
+            <View style={{ marginHorizontal: 16 }}>
+              <View style={{
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(234, 42, 51, 0.2)',
+                padding: 24,
+                backgroundColor: 'rgba(234, 42, 51, 0.05)',
+              }}>
+                <View style={{ position: 'relative', zIndex: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                    <View style={{
+                      backgroundColor: '#ea2a33',
+                      padding: 6,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <MaterialIcons name="cloud-sync" size={14} color="white" />
+                    </View>
+                    <Text style={{
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: '#ea2a33',
+                      textTransform: 'uppercase',
+                      letterSpacing: 2,
+                    }}>
+                      Security Update
+                    </Text>
+                  </View>
+
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#0f172a',
+                    marginBottom: 8,
+                    lineHeight: 22,
+                  }}>
+                    Secure your expenses
+                  </Text>
+                  
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#475569',
+                    marginBottom: 20,
+                    lineHeight: 20,
+                  }}>
+                    Your data is currently stored locally. Sign in now to secure it in the cloud and sync across devices.
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#ea2a33',
+                      paddingVertical: 14,
+                      paddingHorizontal: 24,
+                      borderRadius: 16,
+                      alignItems: 'center',
+                      shadowColor: '#ea2a33',
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 12,
+                      elevation: 8,
+                    }}
+                    activeOpacity={0.98}
+                    onPress={async () => {
+                      await AuthService.logout();
+                      router.replace('/auth/login');
+                    }}
+                  >
+                    <Text style={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: 16,
+                    }}>
+                      Sign In / Create Account
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Decorative circle */}
+                <View style={{
+                  position: 'absolute',
+                  right: -48,
+                  top: -48,
+                  width: 128,
+                  height: 128,
+                  backgroundColor: 'rgba(234, 42, 51, 0.05)',
+                  borderRadius: 64,
+                }} />
+              </View>
+            </View>
+          </View>
         ) : (
           <View style={{ paddingHorizontal: 16, paddingVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <View style={{ position: 'relative' }}>
@@ -185,10 +264,20 @@ export default function SettingsIndex() {
             paddingVertical: 8,
             fontSize: 12,
             fontWeight: 'bold',
-            color: '#9ca3af',
+            color: isGuest ? '#d1d5db' : '#9ca3af',
             textTransform: 'uppercase',
             letterSpacing: 1,
-          }}>Data Parsing</Text>
+          }}>{isGuest ? 'Data Parsing' : 'Data Parsing'}</Text>
+          {isGuest && (
+            <Text style={{
+              paddingHorizontal: 24,
+              fontSize: 10,
+              color: '#9ca3af',
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+              marginTop: -4,
+            }}>RESTRICTED</Text>
+          )}
           
           <View style={{
             backgroundColor: 'white',
@@ -199,6 +288,7 @@ export default function SettingsIndex() {
             shadowOpacity: 0.05,
             shadowRadius: 2,
             elevation: 1,
+            opacity: isGuest ? 0.7 : 1,
           }}>
             {/* Auto-Parsing Toggle */}
             <View style={{
@@ -214,22 +304,25 @@ export default function SettingsIndex() {
                   width: 40,
                   height: 40,
                   borderRadius: 12,
-                  backgroundColor: 'rgba(234, 42, 51, 0.1)',
+                  backgroundColor: isGuest ? 'rgba(156, 163, 175, 0.1)' : 'rgba(234, 42, 51, 0.1)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Ionicons name="mail" size={20} color="#ea2a33" />
+                  <Ionicons name="mail" size={20} color={isGuest ? '#9ca3af' : '#ea2a33'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#1f2937' }}>Auto-Parsing</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Read SMS & Email transactions automatically</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: isGuest ? '#9ca3af' : '#1f2937' }}>Auto-Parsing</Text>
+                  <Text style={{ fontSize: 12, color: isGuest ? '#d1d5db' : '#6b7280' }}>
+                    {isGuest ? 'Login to enable SMS tracking' : 'Read SMS & Email transactions automatically'}
+                  </Text>
                 </View>
               </View>
               <Switch
                 value={autoParsing}
-                onValueChange={setAutoParsing}
-                trackColor={{ false: '#d1d5db', true: '#ea2a33' }}
+                onValueChange={isGuest ? undefined : setAutoParsing}
+                trackColor={{ false: '#d1d5db', true: isGuest ? '#d1d5db' : '#ea2a33' }}
                 thumbColor="white"
+                disabled={isGuest}
               />
             </View>
 
@@ -241,22 +334,23 @@ export default function SettingsIndex() {
                 justifyContent: 'space-between',
                 padding: 16,
               }}
-              onPress={() => router.push('/settings/smart-parsing')}
+              onPress={isGuest ? undefined : () => router.push('/settings/smart-parsing')}
+              disabled={isGuest}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 <View style={{
                   width: 40,
                   height: 40,
                   borderRadius: 12,
-                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  backgroundColor: isGuest ? 'rgba(156, 163, 175, 0.1)' : 'rgba(59, 130, 246, 0.1)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Ionicons name="business" size={20} color="#3b82f6" />
+                  <Ionicons name="business" size={20} color={isGuest ? '#9ca3af' : '#3b82f6'} />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Smart Parsing</Text>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: isGuest ? '#9ca3af' : '#1f2937' }}>Bank Keywords</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={20} color={isGuest ? '#d1d5db' : '#9ca3af'} />
             </TouchableOpacity>
           </View>
 
@@ -268,7 +362,7 @@ export default function SettingsIndex() {
             flexDirection: 'row',
             alignItems: 'center',
           }}>
-          🔒 Your data is processed locally and never leaves your device.
+          🔒 {isGuest ? 'Data is stored locally on this device only.' : 'Your data is processed locally and never leaves your device.'}
           </Text>
         </View>
 
@@ -811,7 +905,7 @@ export default function SettingsIndex() {
             
             <View>
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 8 }}>How do I add custom categories?</Text>
-              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>Go to Settings > Manage Categories and tap the "+" button to create new expense categories with custom icons and colors.</Text>
+              <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 20 }}>Go to Settings {'>'} Manage Categories and tap the "+" button to create new expense categories with custom icons and colors.</Text>
             </View>
             
             <View>

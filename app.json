@@ -23,8 +23,7 @@
         "android.permission.USE_FINGERPRINT"
       ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -45,7 +44,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.801866874360-m23kvuibisrtk6i36gq3ghveieu6fd94"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
