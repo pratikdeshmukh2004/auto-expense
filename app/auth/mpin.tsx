@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function MPINScreen() {
   const [mpin, setMpin] = useState('');
@@ -14,8 +14,16 @@ export default function MPINScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   useEffect(() => {
+    checkMpinExistence();
     checkBiometricAvailability();
   }, []);
+
+  const checkMpinExistence = async () => {
+    const storedMpin = await SecureStore.getItemAsync('user_mpin');
+    if (!storedMpin) {
+      router.replace('/auth/generate-mpin');
+    }
+  };
 
   const checkBiometricAvailability = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -60,7 +68,13 @@ export default function MPINScreen() {
   };
 
   const verifyMpin = async (enteredMpin: string) => {
-    const storedMpin = await SecureStore.getItemAsync('user_mpin') || '1234';
+    const storedMpin = await SecureStore.getItemAsync('user_mpin');
+    
+    if (!storedMpin) {
+      // Should not happen, but failsafe
+      router.replace('/auth/generate-mpin');
+      return;
+    }
     
     if (enteredMpin === storedMpin) {
       router.replace('/dashboard');
@@ -224,14 +238,14 @@ export default function MPINScreen() {
         {renderDots()}
         {renderKeypad()}
 
-        <View style={styles.footer}>
+        {/* <View style={styles.footer}>
           <TouchableOpacity onPress={handleForgotMpin}>
             <Text style={styles.forgotMpin}>Forgot MPIN?</Text>
           </TouchableOpacity>
           <TouchableOpacity>
             <Text style={styles.switchAccount}>Switch Account</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
     </View>
   );
@@ -265,11 +279,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingVertical: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   logoContainer: {
     width: 64,
@@ -300,7 +314,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 48,
+    marginBottom: 32,
   },
   dot: {
     width: 16,

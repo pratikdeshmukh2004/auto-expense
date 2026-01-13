@@ -11,8 +11,9 @@ import SpendingTrends from '../../components/SpendingTrends';
 import TransactionCard from '../../components/TransactionCard';
 import { CategoryService } from '../../services/CategoryService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
+import { AuthService } from '../../services/AuthService';
 
-const AnimatedNumber = ({ value, prefix = '₹', suffix = '' }) => {
+const AnimatedNumber = ({ value, prefix = '₹', suffix = '' }: { value: string, prefix?: string, suffix?: string }) => {
   return (
     <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
       {prefix}{value}{suffix}
@@ -33,12 +34,24 @@ export default function DashboardIndex() {
   const [categoryIcons, setCategoryIcons] = useState<{[key: string]: string}>({});
   const [categoryColors, setCategoryColors] = useState<{[key: string]: string}>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   
   useEffect(() => {
     const now = new Date();
     setCurrentDate(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
     loadTransactionData();
+    loadUserInfo();
   }, []);
+
+  const loadUserInfo = async () => {
+    const guest = await AuthService.isGuest();
+    setIsGuest(guest);
+    if (!guest) {
+      const name = await AuthService.getUserName();
+      setUserName(name);
+    }
+  };
 
   const loadTransactionData = async () => {
     try {
@@ -76,6 +89,7 @@ export default function DashboardIndex() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTransactionData();
+    await loadUserInfo();
     setRefreshing(false);
   };
 
@@ -120,7 +134,9 @@ export default function DashboardIndex() {
       }}>
         <View>
           <Text style={{ fontSize: 14, color: '#64748b', fontWeight: '500' }}>{currentDate}</Text>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>Good Morning, Pratik</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
+            {isGuest ? 'Good Morning' : `Good Morning, ${userName ? userName.split(' ')[0] : 'Pratik'}`}
+          </Text>
         </View>
         <TouchableOpacity 
           style={{

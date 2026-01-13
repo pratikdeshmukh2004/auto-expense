@@ -1,14 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { StatusBar, Text, TouchableOpacity, View, Image } from 'react-native';
+import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleIcon } from '../../components/GoogleIcon';
 import { AuthService } from '../../services/AuthService';
 
 export default function LoginScreen() {
   const handleLogin = async () => {
-    const success = await AuthService.login('user@example.com', 'password');
+    const success = await AuthService.signInWithGoogle();
+    console.log(success, 'success...');
+    
     if (success) {
       const hasMpin = await AuthService.getMpin();
       if (hasMpin) {
@@ -113,6 +114,42 @@ export default function LoginScreen() {
               fontSize: 16,
             }}>
               Continue with Google
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={{
+              width: '100%',
+              height: 56,
+              borderRadius: 12,
+              backgroundColor: 'transparent',
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              marginBottom: 32,
+            }}
+            activeOpacity={0.8}
+            onPress={async () => {
+              const success = await AuthService.loginAsGuest();
+              if (success) {
+                const hasMpin = await AuthService.getMpin();
+                if (hasMpin) {
+                  router.replace('/auth/mpin');
+                } else {
+                  router.replace('/auth/generate-mpin');
+                }
+              }
+            }}
+          >
+            <Text style={{
+              color: '#64748b',
+              fontWeight: '600',
+              fontSize: 16,
+            }}>
+              Continue as Guest
             </Text>
           </TouchableOpacity>
           

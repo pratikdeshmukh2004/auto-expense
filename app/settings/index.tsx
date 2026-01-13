@@ -8,6 +8,8 @@ import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
 import SettingsBottomSheet from '../../components/SettingsBottomSheet';
 
+import { AuthService } from '../../services/AuthService';
+
 export default function SettingsIndex() {
   const [autoParsing, setAutoParsing] = useState(true);
   const [dailySummary, setDailySummary] = useState(true);
@@ -18,17 +20,36 @@ export default function SettingsIndex() {
   const [showPrivacySheet, setShowPrivacySheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [showAboutSheet, setShowAboutSheet] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     loadBiometricSetting();
     loadCounts();
+    loadUserInfo();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       loadCounts();
+      loadUserInfo();
     }, [])
   );
+
+  const loadUserInfo = async () => {
+    const guest = await AuthService.isGuest();
+    setIsGuest(guest);
+    if (!guest) {
+      const name = await AuthService.getUserName();
+      const email = await AuthService.getUserEmail();
+      const photo = await AuthService.getUserPhoto();
+      setUserName(name);
+      setUserEmail(email);
+      setUserPhoto(photo);
+    }
+  };
 
   const loadCounts = async () => {
     const categories = await CategoryService.getCategories();
@@ -53,7 +74,14 @@ export default function SettingsIndex() {
       'Are you sure you want to log out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/auth/mpin') }
+        { 
+          text: 'Log Out', 
+          style: 'default', 
+          onPress: () => {
+            // Just redirect to MPIN, do NOT clear session
+            router.replace('/auth/mpin');
+          }
+        }
       ]
     );
   };
@@ -76,35 +104,79 @@ export default function SettingsIndex() {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
-        <View style={{ paddingHorizontal: 16, paddingVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <View style={{ position: 'relative' }}>
-            <Image
-              source={{ uri: 'https://avatars.githubusercontent.com/u/44018192?v=4' }}
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
+        {isGuest ? (
+          <TouchableOpacity 
+            style={{ 
+              margin: 16, 
+              padding: 16, 
+              backgroundColor: '#fff7ed', // orange-50
+              borderRadius: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderWidth: 1,
+              borderColor: '#fdba74', // orange-300
+              shadowColor: '#ea2a33',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 2,
+            }}
+            onPress={async () => {
+              await AuthService.logout(); 
+              router.replace('/auth/login');
+            }}
+          >
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="warning" size={20} color="#ea580c" />
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#9a3412' }}>
+                  Guest Account Active
+                </Text>
+              </View>
+              <Text style={{ fontSize: 13, color: '#9a3412', lineHeight: 18 }}>
+                Your data is <Text style={{fontWeight: 'bold'}}>not secure</Text>. It is stored only on this device. If you delete the app, your data will be <Text style={{fontWeight: 'bold'}}>permanently lost</Text>.
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#ea580c', marginTop: 4 }}>
+                Sign In to secure your data →
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View style={{ position: 'relative' }}>
+              <Image
+                source={{ uri: userPhoto || 'https://avatars.githubusercontent.com/u/44018192?v=4' }}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  borderWidth: 2,
+                  borderColor: 'white',
+                }}
+              />
+              <View style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: 20,
+                height: 20,
+                backgroundColor: '#10b981',
+                borderRadius: 10,
                 borderWidth: 2,
-                borderColor: 'white',
-              }}
-            />
-            <View style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              width: 20,
-              height: 20,
-              backgroundColor: '#10b981',
-              borderRadius: 10,
-              borderWidth: 2,
-              borderColor: '#f8f6f6',
-            }} />
+                borderColor: '#f8f6f6',
+              }} />
+            </View>
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>
+                {userName}
+              </Text>
+              <Text style={{ fontSize: 14, color: '#6b7280' }}>
+                {userEmail}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Pratik Deshmukh</Text>
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>pratikdeshmukhlobhi@gmail.com</Text>
-          </View>
-        </View>
+        )}
 
         {/* Data Parsing Section */}
         <View style={{ marginBottom: 24 }}>
@@ -548,8 +620,41 @@ export default function SettingsIndex() {
             }}
             onPress={handleLogout}
           >
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>Log Out</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>
+              Log Out
+            </Text>
           </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{
+                width: '100%',
+                paddingVertical: 16,
+                borderRadius: 12,
+                backgroundColor: 'rgba(234, 40, 49, 0.1)',
+                borderWidth: 1,
+                borderColor: 'transparent',
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                 Alert.alert(
+                  'Delete Account',
+                  'Are you sure? This will remove all your data and settings.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Delete', 
+                      style: 'destructive', 
+                      onPress: async () => {
+                        await AuthService.deleteAccount();
+                        router.replace('/auth/login');
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#ea2a33' }}>Delete Account</Text>
+            </TouchableOpacity>
 
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: '#9ca3af', fontWeight: '500' }}>Expense Tracker v1.0.4</Text>
