@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated, PanResponder } from 'react-native';
 
 interface DateTimePickerModalProps {
   visible: boolean;
@@ -19,6 +19,26 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isAM, setIsAM] = useState(initialDate.getHours() < 12);
   const scrollViewRef = useRef<ScrollView>(null);
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+  }, [visible]);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => evt.nativeEvent.locationY < 40,
+    onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 20,
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dy > 0) pan.setValue({ x: 0, y: gestureState.dy });
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dy > 150) {
+        onClose();
+      } else {
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+      }
+    },
+  });
 
   useEffect(() => {
     if (visible) {
@@ -159,13 +179,13 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity 
-          style={styles.container}
+        <Animated.View 
+          style={[styles.container, { transform: [{ translateY: pan.y }] }]}
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Drag Handle */}
-          <View style={styles.dragHandle}>
+          <View style={styles.dragHandle} {...panResponder.panHandlers}>
             <View style={styles.handle} />
           </View>
         {/* Header */}
@@ -288,7 +308,7 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
             <Text style={styles.selectButtonText}>Select</Text>
           </TouchableOpacity>
         </View>
-        </TouchableOpacity>
+        </Animated.View>
       </TouchableOpacity>
     </Modal>
   );

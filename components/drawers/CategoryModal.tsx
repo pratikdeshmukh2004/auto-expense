@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
 import { CategoryService, Category } from '../../services/CategoryService';
 
 interface CategoryModalProps {
@@ -37,6 +37,26 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
   const colors = ['#EA2831', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#64748b'];
   const icons = ['car', 'restaurant', 'bag', 'home', 'fitness', 'game-controller', 'medical', 'school', 'airplane', 'construct', 'receipt', 'storefront'];
   const screenHeight = Dimensions.get('window').height;
+  const pan = useRef(new Animated.ValueXY()).current;
+  
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+  }, [visible]);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (evt) => evt.nativeEvent.locationY < 40,
+    onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 20,
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dy > 0) pan.setValue({ x: 0, y: gestureState.dy });
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dy > 150) {
+        onClose();
+      } else {
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+      }
+    },
+  });
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -105,12 +125,18 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, backgroundColor: '#f8f6f6', maxHeight: screenHeight * 0.9 }}>
+      <TouchableOpacity 
+        style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' }}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+      <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+      <Animated.View style={{ backgroundColor: '#f8f6f6', borderTopLeftRadius: 32, borderTopRightRadius: 32, height: screenHeight * 0.9, transform: [{ translateY: pan.y }] }}>
         {/* Handle */}
-        <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
+        <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }} {...panResponder.panHandlers}>
           <View style={{
             width: 40,
             height: 6,
@@ -139,7 +165,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={{ flex: 1, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
           {/* Icon Section */}
           <View style={{ alignItems: 'center', paddingVertical: 12 }}>
             <View style={{
@@ -320,7 +346,9 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </Animated.View>
+      </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
