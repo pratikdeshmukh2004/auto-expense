@@ -34,6 +34,7 @@ export default function SmartParsing() {
   const [editingSenderCategory, setEditingSenderCategory] = useState<string | null>(null);
   const [editCategoryValue, setEditCategoryValue] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
+  const [rejectedTransactions, setRejectedTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     loadKeywords();
@@ -41,6 +42,7 @@ export default function SmartParsing() {
     loadTransactionEmails();
     loadApprovedSenders();
     loadCategories();
+    loadRejectedTransactions();
   }, []);
 
   const loadUserEmail = async () => {
@@ -73,6 +75,24 @@ export default function SmartParsing() {
   const loadCategories = async () => {
     const cats = await CategoryService.getCategories();
     setCategories(cats);
+  };
+
+  const loadRejectedTransactions = async () => {
+    const rejected = await TransactionService.getRejectedTransactions();
+    console.log('Rejected transactions:', rejected);
+    const formatted = rejected.map((t) => ({
+      id: t.id,
+      sender: t.notes || 'Transaction',
+      message: t.rawMessage || `${t.merchant} - ₹${t.amount}`,
+      merchant: t.merchant,
+      amount: t.amount,
+      category: t.category,
+      paymentMethod: t.paymentMethod,
+      date: t.date,
+      time: new Date(t.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    }));
+    console.log('Formatted rejected:', formatted);
+    setRejectedTransactions(formatted);
   };
 
   const removeSender = async (sender: string) => {
@@ -175,7 +195,21 @@ export default function SmartParsing() {
     });
   };
 
-  const handleReject = (messageId: string) => {
+  const handleReject = async (messageId: string) => {
+    const message = recentMessages.find((m) => m.id === messageId);
+    if (message) {
+      await TransactionService.addTransaction({
+        merchant: message.merchant,
+        amount: message.amount,
+        category: message.category,
+        paymentMethod: message.paymentMethod || 'Unknown',
+        date: message.date,
+        type: 'expense',
+        status: 'rejected',
+        rawMessage: message.message,
+      });
+      await loadRejectedTransactions();
+    }
     setRecentMessages((prev) => prev.filter((m) => m.id !== messageId));
     setEditingFields((prev) => {
       const updated = { ...prev };
@@ -243,6 +277,27 @@ export default function SmartParsing() {
     setSelectedMessage(null);
   };
 
+  const handleRestoreRejected = async (transaction: any) => {
+    await TransactionService.deleteTransaction(transaction.id);
+    await TransactionService.addTransaction({
+      merchant: transaction.merchant,
+      amount: transaction.amount,
+      category: transaction.category,
+      paymentMethod: transaction.paymentMethod,
+      date: transaction.date,
+      type: 'expense',
+      status: 'pending',
+      rawMessage: transaction.message,
+      notes: transaction.sender,
+    });
+    await loadRejectedTransactions();
+  };
+
+  const handleDeleteRejected = async (id: string) => {
+    await TransactionService.deleteTransaction(id);
+    await loadRejectedTransactions();
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -265,7 +320,10 @@ export default function SmartParsing() {
         refreshControl={
           <RefreshControl
             refreshing={loadingMessages}
-            onRefresh={loadTransactionEmails}
+            onRefresh={() => {
+              loadTransactionEmails();
+              loadRejectedTransactions();
+            }}
             tintColor="#EA2831"
           />
         }
@@ -702,6 +760,57 @@ export default function SmartParsing() {
             </View>
           );
           })
+        )}
+
+        {/* Rejected Transactions Section */}
+        {rejectedTransactions.length > 0 && (
+          <>
+            <View style={styles.dividerSection}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>REJECTED TRANSACTIONS</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {rejectedTransactions.map((transaction) => (
+              <View key={transaction.id} style={styles.rejectedCard}>
+                <View style={styles.messageContent}>
+                  <View style={styles.messageHeader}>
+                    <View style={styles.rejectedIcon}>
+                      <Ionicons name="close-circle" size={20} color="#ef4444" />
+                    </View>
+                    <View style={styles.messageInfo}>
+                      <View style={styles.messageTopRow}>
+                        <Text style={styles.senderLabel} numberOfLines={2}>
+                          {transaction.sender}
+                        </Text>
+                        <Text style={styles.messageTime}>{transaction.time}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.rawMessageContainer}>
+                    <Text style={styles.rawMessageText}>{transaction.message}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteRejected(transaction.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.restoreButton}
+                    onPress={() => handleRestoreRejected(transaction)}
+                  >
+                    <Ionicons name="arrow-undo" size={18} color="white" />
+                    <Text style={styles.approveText}>Restore</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
         {/* Info Card */}
@@ -1203,5 +1312,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#1d4ed8",
     lineHeight: 18,
+  },
+  rejectedCard: {
+    backgroundColor: "#fef2f2",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  rejectedIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    flexShrink: 0,
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  deleteText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#ef4444",
+  },
+  restoreButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: "#10b981",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#10b981",
   },
 });

@@ -61,6 +61,7 @@ export default function DashboardIndex() {
   const [userName, setUserName] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [hasPendingTransactions, setHasPendingTransactions] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -107,6 +108,7 @@ export default function DashboardIndex() {
       
       const pendingCount = allTransactions.filter(t => t.status === 'pending').length;
       setHasPendingTransactions(pendingCount > 0);
+      setPendingCount(pendingCount);
       
       setTransactions(allTransactions);
       setRecentTransactions(recentTxns);
@@ -200,15 +202,20 @@ export default function DashboardIndex() {
           {hasPendingTransactions && (
             <View style={{
               position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
+              top: 6,
+              right: 6,
+              minWidth: 18,
+              height: 18,
+              borderRadius: 9,
               backgroundColor: '#10b981',
               borderWidth: 2,
               borderColor: 'white',
-            }} />
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 4,
+            }}>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: 'white' }}>{pendingCount}</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>

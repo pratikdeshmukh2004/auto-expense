@@ -9,7 +9,7 @@ export interface Transaction {
   date: string;
   timestamp: Date;
   type: 'expense' | 'income';
-  status: 'completed' | 'pending';
+  status: 'completed' | 'pending' | 'rejected';
   rawMessage?: string;
   notes?: string;
 }
@@ -47,6 +47,24 @@ export class TransactionService {
       }));
     } catch (error) {
       console.error('Error getting all transactions:', error);
+      return [];
+    }
+  }
+
+  static async getRejectedTransactions(): Promise<Transaction[]> {
+    try {
+      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
+      if (!stored) return [];
+      
+      const transactions = JSON.parse(stored);
+      return transactions
+        .filter((t: any) => t.status === 'rejected')
+        .map((t: any) => ({
+          ...t,
+          timestamp: new Date(t.timestamp)
+        }));
+    } catch (error) {
+      console.error('Error getting rejected transactions:', error);
       return [];
     }
   }
@@ -94,8 +112,11 @@ export class TransactionService {
 
   static async deleteTransaction(id: string): Promise<void> {
     try {
-      const transactions = await this.getTransactions();
-      const filtered = transactions.filter(t => t.id !== id);
+      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
+      if (!stored) return;
+      
+      const allTransactions = JSON.parse(stored);
+      const filtered = allTransactions.filter((t: any) => t.id !== id);
       await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(filtered));
     } catch (error) {
       console.error('Error deleting transaction:', error);
