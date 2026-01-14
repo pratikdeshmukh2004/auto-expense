@@ -36,7 +36,15 @@ export default function DashboardIndex() {
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [hasPendingTransactions, setHasPendingTransactions] = useState(false);
   
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   useEffect(() => {
     const now = new Date();
     setCurrentDate(now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
@@ -73,6 +81,9 @@ export default function DashboardIndex() {
         return acc;
       }, {} as {[key: string]: string});
       
+      const pendingCount = allTransactions.filter(t => t.status === 'pending').length;
+      setHasPendingTransactions(pendingCount > 0);
+      
       setTransactions(allTransactions);
       setRecentTransactions(recentTxns);
       setTotalIncome(income);
@@ -88,6 +99,12 @@ export default function DashboardIndex() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    try {
+      const { GmailService } = await import('../../services/GmailService');
+      await GmailService.fetchTransactionEmails();
+    } catch (error) {
+      console.log('Error fetching Gmail transactions:', error);
+    }
     await loadTransactionData();
     await loadUserInfo();
     setRefreshing(false);
@@ -135,7 +152,7 @@ export default function DashboardIndex() {
         <View>
           <Text style={{ fontSize: 14, color: '#64748b', fontWeight: '500' }}>{currentDate}</Text>
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
-            {isGuest ? 'Good Morning' : `Good Morning, ${userName ? userName.split(' ')[0] : 'Pratik'}`}
+            {isGuest ? getGreeting() : `${getGreeting()}, ${userName ? userName.split(' ')[0] : 'User'}`}
           </Text>
         </View>
         <TouchableOpacity 
@@ -156,17 +173,19 @@ export default function DashboardIndex() {
           onPress={() => setShowApprovalModal(true)}
         >
           <Ionicons name="notifications-outline" size={24} color="#EA2831" />
-          <View style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: '#10b981',
-            borderWidth: 2,
-            borderColor: 'white',
-          }} />
+          {hasPendingTransactions && (
+            <View style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: '#10b981',
+              borderWidth: 2,
+              borderColor: 'white',
+            }} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -341,7 +360,10 @@ export default function DashboardIndex() {
       
       <TransactionApprovalModal 
         visible={showApprovalModal} 
-        onClose={() => setShowApprovalModal(false)} 
+        onClose={() => {
+          setShowApprovalModal(false);
+          loadTransactionData();
+        }} 
       />
     </SafeAreaView>
   );

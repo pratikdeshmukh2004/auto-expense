@@ -145,7 +145,7 @@ export default function TransactionDetailsScreen() {
               fontWeight: 'bold',
               color: '#886364',
               marginTop: 4,
-            }}>
+            }} numberOfLines={1} ellipsizeMode="tail">
               {transaction.merchant}
             </Text>
             
@@ -170,7 +170,7 @@ export default function TransactionDetailsScreen() {
                 textTransform: 'uppercase',
                 letterSpacing: 1.5,
               }}>
-                Completed
+                {transaction.status}
               </Text>
             </View>
           </View>
@@ -407,8 +407,8 @@ export default function TransactionDetailsScreen() {
                   borderBottomWidth: index < recentHistory.length - 1 ? 1 : 0,
                   borderBottomColor: 'rgba(0, 0, 0, 0.05)',
                 }}>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }}>{historyTransaction.merchant}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }} numberOfLines={1} ellipsizeMode="tail">{historyTransaction.merchant}</Text>
                     <Text style={{ fontSize: 12, color: '#886364' }}>{new Date(historyTransaction.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {historyTransaction.category}</Text>
                   </View>
                   <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }}>{historyTransaction.type === 'income' ? '+' : '-'}₹{historyTransaction.amount}</Text>

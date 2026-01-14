@@ -14,6 +14,7 @@ interface ParsedTransaction {
 export class NotificationParser {
   private static readonly KEYWORDS_KEY = 'bank_keywords';
   private static readonly TRANSACTIONS_KEY = 'parsed_transactions';
+  private static readonly APPROVED_SENDERS_KEY = 'approved_senders';
 
   static async requestPermissions(): Promise<boolean> {
     // Notification permissions removed due to Expo Go SDK 53+ limitations
@@ -22,11 +23,38 @@ export class NotificationParser {
 
   static async getKeywords(): Promise<string[]> {
     const stored = await SecureStore.getItemAsync(this.KEYWORDS_KEY);
-    return stored ? JSON.parse(stored) : ['Uber', 'Starbucks', 'Netflix', 'Amazon', 'Walmart'];
+    return stored ? JSON.parse(stored) : ['HDFC', 'SBI', 'ICICI', 'Axis', 'Kotak', 'BOI', 'PNB', 'Canara', 'Union', 'BOB', 'IDBI', 'Indian', 'Central', 'UCO', 'Syndicate', 'Allahabad', 'Andhra', 'Corporation', 'Dena', 'Indian Overseas', 'Oriental', 'Punjab', 'Vijaya', 'United', 'State Bank', 'Bank of India', 'Bank of Baroda', 'Federal', 'Jupiter', 'Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay'];
   }
 
   static async saveKeywords(keywords: string[]): Promise<void> {
     await SecureStore.setItemAsync(this.KEYWORDS_KEY, JSON.stringify(keywords));
+  }
+
+  static async getApprovedSenders(): Promise<string[]> {
+    const stored = await SecureStore.getItemAsync(this.APPROVED_SENDERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  static async addApprovedSender(sender: string, category: string): Promise<void> {
+    const stored = await SecureStore.getItemAsync(this.APPROVED_SENDERS_KEY);
+    const senders = stored ? JSON.parse(stored) : [];
+    const existing = senders.find((s: any) => s.sender === sender);
+    if (!existing) {
+      senders.push({ sender, category });
+      await SecureStore.setItemAsync(this.APPROVED_SENDERS_KEY, JSON.stringify(senders));
+    }
+  }
+
+  static async saveApprovedSenders(senders: any[]): Promise<void> {
+    await SecureStore.setItemAsync(this.APPROVED_SENDERS_KEY, JSON.stringify(senders));
+  }
+
+  static async getApprovedSenderCategory(sender: string): Promise<string | null> {
+    const stored = await SecureStore.getItemAsync(this.APPROVED_SENDERS_KEY);
+    if (!stored) return null;
+    const senders = JSON.parse(stored);
+    const found = senders.find((s: any) => s.sender === sender);
+    return found ? found.category : null;
   }
 
   static parseTransactionMessage(message: string): ParsedTransaction | null {

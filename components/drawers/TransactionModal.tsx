@@ -13,13 +13,20 @@ interface TransactionModalProps {
   visible: boolean;
   onClose: () => void;
   transaction?: Transaction;
+  prefillData?: {
+    merchant: string;
+    amount: string;
+    category: string;
+    paymentMethod: string;
+    date: string;
+  };
   onTransactionUpdated?: () => void;
   onTransactionAdded?: () => void;
 }
 
-export default function TransactionModal({ visible, onClose, transaction, onTransactionUpdated, onTransactionAdded }: TransactionModalProps) {
+export default function TransactionModal({ visible, onClose, transaction, prefillData, onTransactionUpdated, onTransactionAdded }: TransactionModalProps) {
   const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
+  const [merchant, setMerchant] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPayment, setSelectedPayment] = useState('');
   const [notes, setNotes] = useState('');
@@ -38,7 +45,15 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
     if (visible) {
       loadData();
       if (!isEditMode) {
-        setSelectedDateTime(new Date());
+        if (prefillData) {
+          setAmount(prefillData.amount);
+          setMerchant(prefillData.merchant);
+          setSelectedCategory(prefillData.category);
+          setSelectedPayment(prefillData.paymentMethod);
+          setSelectedDateTime(new Date(prefillData.date));
+        } else {
+          setSelectedDateTime(new Date());
+        }
       }
     }
   }, [visible]);
@@ -63,7 +78,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
   useEffect(() => {
     if (transaction && visible && categories.length > 0 && paymentMethods.length > 0) {
       setAmount(transaction.amount);
-      setDescription(transaction.merchant);
+      setMerchant(transaction.merchant);
       setSelectedCategory(transaction.category);
       setSelectedPayment(transaction.paymentMethod || paymentMethods[0].name);
       setNotes(transaction.notes || '');
@@ -73,12 +88,12 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
   }, [transaction, visible, categories, paymentMethods]);
 
   const handleSave = async () => {
-    if (!amount || !description) return;
+    if (!amount || !merchant) return;
 
     try {
       if (isEditMode && transaction) {
         await TransactionService.updateTransaction(transaction.id, {
-          merchant: description,
+          merchant: merchant,
           amount: amount,
           category: selectedCategory,
           paymentMethod: selectedPayment,
@@ -88,14 +103,14 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
         });
       } else {
         await TransactionService.addTransaction({
-          merchant: description,
+          merchant: merchant,
           amount: amount,
           category: selectedCategory,
           paymentMethod: selectedPayment,
           date: selectedDateTime.toISOString(),
           type: transactionType,
-          status: 'completed',
-          notes: notes
+          status: prefillData ? 'pending' : 'completed',
+          notes: notes || (prefillData ? 'Email Automated' : '')
         });
       }
       
@@ -105,7 +120,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
         onTransactionAdded?.();
         // Reset form for add mode
         setAmount('');
-        setDescription('');
+        setMerchant('');
         setSelectedCategory(categories.length > 0 ? categories[0].name : '');
         setSelectedPayment(paymentMethods.length > 0 ? paymentMethods[0].name : '');
         setNotes('');
@@ -327,7 +342,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
             </View>
 
             <View style={{ paddingHorizontal: 24, gap: 32 }}>
-              {/* Description */}
+              {/* Merchant */}
               <View>
                 <Text style={{
                   fontSize: 12,
@@ -337,7 +352,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
                   letterSpacing: 2,
                   marginBottom: 10,
                   marginLeft: 4,
-                }}>Description</Text>
+                }}>Merchant</Text>
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -366,8 +381,8 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
                     }}
                     placeholder="e.g. Starbucks, Uber, Rent"
                     placeholderTextColor="#9ca3af"
-                    value={description}
-                    onChangeText={setDescription}
+                    value={merchant}
+                    onChangeText={setMerchant}
                     maxLength={30}
                   />
                   <TouchableOpacity 
@@ -682,14 +697,14 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
           }}>
             <TouchableOpacity
               style={{
-                backgroundColor: amount && description ? '#EA2831' : '#94a3b8',
+                backgroundColor: amount && merchant ? '#EA2831' : '#94a3b8',
                 height: 56,
                 borderRadius: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                shadowColor: amount && description ? '#EA2831' : '#94a3b8',
+                shadowColor: amount && merchant ? '#EA2831' : '#94a3b8',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 15,
@@ -697,7 +712,7 @@ export default function TransactionModal({ visible, onClose, transaction, onTran
                 marginBottom: isEditMode ? 12 : 0,
               }}
               onPress={handleSave}
-              disabled={!amount || !description}
+              disabled={!amount || !merchant}
             >
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>
                 {isEditMode ? 'Save Changes' : 'Save Transaction'}

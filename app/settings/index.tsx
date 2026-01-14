@@ -348,7 +348,7 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name="business" size={20} color={isGuest ? '#9ca3af' : '#3b82f6'} />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: isGuest ? '#9ca3af' : '#1f2937' }}>Bank Keywords</Text>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: isGuest ? '#9ca3af' : '#1f2937' }}>Smart Parsing</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={isGuest ? '#d1d5db' : '#9ca3af'} />
             </TouchableOpacity>

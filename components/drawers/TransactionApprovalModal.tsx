@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, PanResponder, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Transaction, TransactionService } from '../../services/TransactionService';
+import TransactionModal from './TransactionModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -12,40 +14,48 @@ interface TransactionApprovalModalProps {
 
 export default function TransactionApprovalModal({ visible, onClose }: TransactionApprovalModalProps) {
   const [currentTransaction, setCurrentTransaction] = useState(0);
-  const [merchantName, setMerchantName] = useState('Starbucks');
+  const [merchantName, setMerchantName] = useState('');
   const [note, setNote] = useState('');
-  const [transactionDate, setTransactionDate] = useState('Today');
-  const [transactionTime, setTransactionTime] = useState('8:45 AM');
+  const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
   
   const pan = useRef(new Animated.ValueXY()).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
-  const pendingTransactions = [
-    { merchant: 'Starbucks', amount: 14.50, category: 'Food & Drink', time: 'Today, 8:45 AM', icon: 'cafe' },
-    { merchant: 'Uber', amount: 24.12, category: 'Transport', time: 'Today, 2:30 PM', icon: 'car' },
-    { merchant: 'Shell Station', amount: 45.20, category: 'Fuel', time: 'Yesterday, 5:15 PM', icon: 'car-sport' },
-    { merchant: 'Target', amount: 67.89, category: 'Shopping', time: 'Yesterday, 11:20 AM', icon: 'bag' },
-    { merchant: 'Netflix', amount: 15.99, category: 'Entertainment', time: '2 days ago', icon: 'play-circle' },
-  ];
-
   const currentTx = pendingTransactions[currentTransaction];
 
-  // Reset state when modal opens
+  // Load pending transactions when modal opens
   useEffect(() => {
     if (visible) {
-      setCurrentTransaction(0);
-      setMerchantName('Starbucks');
-      setNote('');
-      resetCard();
+      loadPendingTransactions();
     }
   }, [visible]);
 
-  const handleApprove = () => {
+  const loadPendingTransactions = async () => {
+    const transactions = await TransactionService.getTransactions();
+    const pending = transactions.filter(t => t.status === 'pending');
+    setPendingTransactions(pending);
+    setCurrentTransaction(0);
+    if (pending.length > 0) {
+      setMerchantName(pending[0].merchant);
+      setNote(pending[0].notes || '');
+    }
+    resetCard();
+  };
+
+  const handleApprove = async () => {
+    if (currentTx) {
+      await TransactionService.updateTransaction(currentTx.id, {
+        merchant: merchantName,
+        notes: note,
+        status: 'completed'
+      });
+    }
     animateCardExit('right', () => {
       if (currentTransaction < pendingTransactions.length - 1) {
         setCurrentTransaction(currentTransaction + 1);
         setMerchantName(pendingTransactions[currentTransaction + 1].merchant);
-        setNote('');
+        setNote(pendingTransactions[currentTransaction + 1].notes || '');
         resetCard();
       } else {
         onClose();
@@ -53,12 +63,17 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
     });
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
+    if (currentTx) {
+      await TransactionService.updateTransaction(currentTx.id, {
+        status: 'rejected'
+      });
+    }
     animateCardExit('left', () => {
       if (currentTransaction < pendingTransactions.length - 1) {
         setCurrentTransaction(currentTransaction + 1);
         setMerchantName(pendingTransactions[currentTransaction + 1].merchant);
-        setNote('');
+        setNote(pendingTransactions[currentTransaction + 1].notes || '');
         resetCard();
       } else {
         onClose();
@@ -130,20 +145,49 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
   });
     
 
+  if (!currentTx) {
+    return (
+      <Modal visible={visible} animationType="fade" presentationStyle="overFullScreen" transparent statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 32, alignItems: 'center' }}>
+            <Ionicons name="checkmark-circle" size={64} color="#10b981" />
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginTop: 16 }}>All Caught Up!</Text>
+            <Text style={{ fontSize: 14, color: '#6b7280', marginTop: 8, textAlign: 'center' }}>No pending transactions to review</Text>
+            <TouchableOpacity
+              style={{ marginTop: 24, backgroundColor: '#EA2831', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+              onPress={onClose}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} animationType="fade" presentationStyle="overFullScreen" transparent statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-        <SafeAreaView style={{ flex: 1 }}>
-          {/* Header with Back Button and Counter */}
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <View style={{
-            flexDirection: 'row',
+            flex: 1,
             alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 10,
-            marginTop: 0,
-            paddingBottom: 8,
-            zIndex: 10,
+            justifyContent: 'center',
+            paddingHorizontal: 16,
+            paddingTop: 60,
+            paddingBottom: 20,
           }}>
+            <View style={{
+              position: 'absolute',
+              top: 20,
+              left: 16,
+              right: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 10,
+              zIndex: 10,
+            }}>
             <TouchableOpacity
               onPress={onClose}
               style={{
@@ -164,59 +208,55 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
               {pendingTransactions.length - currentTransaction} Left
             </Text>
             
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              onPress={() => setShowTransactionModal(true)}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="create-outline" size={24} color="white" />
+            </TouchableOpacity>
           </View>
-          {/* Transaction Card */}
-          <View style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 30,
-            marginTop: 0,
-          }}>
-            {/* Stacked Cards Effect - Only show if more than 1 transaction remaining */}
-            {(pendingTransactions.length - currentTransaction) > 1 && (
+
+          {(pendingTransactions.length - currentTransaction) > 1 && (
+            <>
+              {/* Back Card */}
               <View style={{
                 position: 'absolute',
                 width: '100%',
                 maxWidth: 500,
-                height: 650,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                {/* Back Card */}
-                <View style={{
-                  position: 'absolute',
-                  width: '97%',
-                  height: 570,
-                  backgroundColor: 'white',
-                  borderRadius: 32,
-                  top: 15,
-                  opacity: 0.3,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }} />
-                {/* Middle Card */}
-                <View style={{
-                  position: 'absolute',
-                  width: '97%',
-                  height: 570,
-                  backgroundColor: 'white',
-                  borderRadius: 32,
-                  top: 10,
-                  opacity: 0.6,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 8,
-                  elevation: 4,
-                }} />
-              </View>
-            )}
+                backgroundColor: 'white',
+                borderRadius: 32,
+                height: 555,
+                top: 100,
+                opacity: 0.3,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 2,
+              }} />
+              {/* Middle Card */}
+              <View style={{
+                position: 'absolute',
+                width: '100%',
+                maxWidth: 500,
+                backgroundColor: 'white',
+                borderRadius: 32,
+                height: 550,
+                top: 100,
+                opacity: 0.6,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 4,
+              }} />
+            </>
+          )}
 
             {/* Main Transaction Card */}
             <Animated.View 
@@ -243,12 +283,12 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
               {/* Amount */}
               <View style={{
                 alignItems: 'center',
-                paddingVertical: 32,
-                paddingTop: 40,
+                paddingVertical: 24,
+                paddingTop: 32,
               }}>
                 <Text style={{ fontSize: 48, fontWeight: '800', color: '#0d121b' }}>
-                  <Text style={{ fontSize: 24, color: '#9ca3af' }}>$</Text>
-                  {currentTx.amount.toFixed(2)}
+                  <Text style={{ fontSize: 24, color: '#9ca3af' }}>₹</Text>
+                  {parseFloat(currentTx.amount).toFixed(2)}
                 </Text>
               </View>
 
@@ -296,7 +336,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
               </View>
 
               {/* Form Fields */}
-              <View style={{ padding: 32, gap: 32, paddingBottom: 40 }}>
+              <View style={{ padding: 24, gap: 24, paddingBottom: 32 }}>
                 {/* Category */}
                 <View>
                   <Text style={{
@@ -308,7 +348,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                     marginBottom: 8,
                     marginLeft: 4,
                   }}>Category</Text>
-                  <TouchableOpacity style={{
+                  <View style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -325,12 +365,11 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                         backgroundColor: '#fed7aa',
                         borderRadius: 8,
                       }}>
-                        <Ionicons name="restaurant" size={18} color="#ea580c" />
+                        <Ionicons name="pricetag" size={18} color="#ea580c" />
                       </View>
                       <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>{currentTx.category}</Text>
                     </View>
-                    <Ionicons name="chevron-down" size={20} color="#9ca3af" />
-                  </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Payment Method */}
@@ -344,7 +383,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                     marginBottom: 8,
                     marginLeft: 4,
                   }}>Payment Method</Text>
-                  <TouchableOpacity style={{
+                  <View style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -363,10 +402,9 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                       }}>
                         <Ionicons name="card" size={18} color="#2563eb" />
                       </View>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>Visa ending 4242</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>{currentTx.paymentMethod || 'Unknown'}</Text>
                     </View>
-                    <Ionicons name="chevron-down" size={20} color="#9ca3af" />
-                  </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Note */}
@@ -415,7 +453,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
             <View style={{
               flexDirection: 'row',
               gap: 16,
-              marginTop: 25,
+              marginTop: 20,
               width: '100%',
               maxWidth: 360,
             }}>
@@ -440,7 +478,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                 onPress={handleReject}
               >
                 <Ionicons name="close" size={20} color="#dc2626" />
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#dc2626' }}>Reject</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#dc2626' }}>Wrong</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -462,7 +500,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                 onPress={handleApprove}
               >
                 <Ionicons name="checkmark" size={20} color="white" />
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>Accept</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>Correct</Text>
               </TouchableOpacity>
             </View>
 
@@ -478,6 +516,21 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
           </View>
         </SafeAreaView>
       </View>
+      
+      {currentTx && (
+        <TransactionModal
+          visible={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          transaction={currentTx}
+          onTransactionUpdated={async () => {
+            await TransactionService.updateTransaction(currentTx.id, {
+              status: 'completed'
+            });
+            await loadPendingTransactions();
+            setShowTransactionModal(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }

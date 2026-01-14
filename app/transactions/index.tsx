@@ -8,6 +8,7 @@ import TransactionModal from '../../components/drawers/TransactionModal';
 import { CategoryService } from '../../services/CategoryService';
 import { PaymentMethodService } from '../../services/PaymentMethodService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
+import { getRelativeTime } from '../../utils/dateUtils';
 
 
 
@@ -347,7 +348,7 @@ export default function TransactionsIndex() {
               justifyContent: 'space-between',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
               <View style={{
                 width: 48,
                 height: 48,
@@ -358,9 +359,9 @@ export default function TransactionsIndex() {
               }}>
                 <Ionicons name={categoryIcons[transaction.category] || 'storefront'} size={24} color={categoryColors[transaction.category] || '#ea2a33'} />
               </View>
-              <View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{transaction.merchant}</Text>
-                <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>{transaction.category} • {new Date(transaction.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} ellipsizeMode="tail">{transaction.merchant}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>{transaction.category} • {getRelativeTime(transaction.timestamp)}</Text>
               </View>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>

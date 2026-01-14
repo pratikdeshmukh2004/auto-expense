@@ -55,18 +55,14 @@ export class AuthService {
       });
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
-      console.log(userInfo, 'user...');
       
       if (userInfo.data?.idToken) {
         await SecureStore.setItemAsync(this.USER_TOKEN_KEY, userInfo.data.idToken);
-        if (userInfo.data.user.name) {
-          await SecureStore.setItemAsync('user_name', userInfo.data.user.name);
-        }
-        if (userInfo.data.user.email) {
-          await SecureStore.setItemAsync('user_email', userInfo.data.user.email);
-        }
-        if (userInfo.data.user.photo) {
-          await SecureStore.setItemAsync('user_photo', userInfo.data.user.photo);
+        // Store user info for later retrieval
+        if (userInfo.data.user) {
+          await SecureStore.setItemAsync('user_name', userInfo.data.user.name || '');
+          await SecureStore.setItemAsync('user_email', userInfo.data.user.email || '');
+          await SecureStore.setItemAsync('user_photo', userInfo.data.user.photo || '');
         }
         return true;
       }
@@ -87,7 +83,6 @@ export class AuthService {
           default:
             console.error('Some other error happened', error);
         }
-      } else {
       }
       return false;
     }
@@ -95,10 +90,10 @@ export class AuthService {
 
   static async logout(): Promise<void> {
     await SecureStore.deleteItemAsync(this.USER_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(this.USER_GUEST_KEY);
     await SecureStore.deleteItemAsync('user_name');
     await SecureStore.deleteItemAsync('user_email');
-    await SecureStore.deleteItemAsync('user_photo'); // Added
-    await SecureStore.deleteItemAsync(this.USER_GUEST_KEY);
+    await SecureStore.deleteItemAsync('user_photo');
   }
 
   static async deleteAccount(): Promise<void> {
@@ -112,6 +107,9 @@ export class AuthService {
     await SecureStore.deleteItemAsync('app_transactions');
     await SecureStore.deleteItemAsync('user_categories');
     await SecureStore.deleteItemAsync('user_payment_methods');
+    await SecureStore.deleteItemAsync('user_name');
+    await SecureStore.deleteItemAsync('user_email');
+    await SecureStore.deleteItemAsync('user_photo');
   }
 
   static async getMpin(): Promise<string | null> {

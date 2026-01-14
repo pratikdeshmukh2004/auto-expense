@@ -36,7 +36,7 @@ export default function TransactionCard({
         marginBottom: 4,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
         <View style={{
           width: 48,
           height: 48,
@@ -51,8 +51,8 @@ export default function TransactionCard({
             color={categoryColors[transaction.category] || '#ea2a33'} 
           />
         </View>
-        <View>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} ellipsizeMode="tail">
             {transaction.merchant}
           </Text>
           <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>
