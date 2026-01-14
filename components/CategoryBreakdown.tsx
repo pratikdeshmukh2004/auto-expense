@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -24,6 +26,7 @@ export default function CategoryBreakdown({
 }: CategoryBreakdownProps) {
   const [selectedType, setSelectedType] = React.useState<'expenses' | 'income'>('expenses');
   const [categories, setCategories] = React.useState<any[]>([]);
+  const animatedValues = React.useRef<Animated.Value[]>([]).current;
   const isSmallScreen = screenWidth < 400;
   const chartSize = isSmallScreen ? 120 : 160;
   const radius = isSmallScreen ? 50 : 70;
@@ -41,6 +44,18 @@ export default function CategoryBreakdown({
     }).sort((a, b) => b.amount - a.amount).slice(0, 3);
     
     setCategories(newCategories);
+    
+    // Animate chart and bars
+    animatedValues.length = 0;
+    newCategories.forEach(() => {
+      const anim = new Animated.Value(0);
+      animatedValues.push(anim);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    });
   }, [categoryBreakdown, incomeBreakdown, totalExpenses, totalIncome, selectedType]);
   
   const currentTotal = selectedType === 'expenses' ? totalExpenses : totalIncome;
@@ -139,8 +154,13 @@ export default function CategoryBreakdown({
                   const strokeDashoffset = -offset;
                   offset += (category.percentage / 100) * circumference;
                   
+                  const animatedStrokeDasharray = animatedValues[index]?.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [`0 ${circumference}`, strokeDasharray],
+                  }) || strokeDasharray;
+                  
                   return (
-                    <Circle
+                    <AnimatedCircle
                       key={category.name}
                       cx={chartSize / 2}
                       cy={chartSize / 2}
@@ -148,7 +168,7 @@ export default function CategoryBreakdown({
                       stroke={categoryColors[category.name] || ['#EA2831', '#8b5cf6', '#06b6d4'][index]}
                       strokeWidth={isSmallScreen ? 15 : 20}
                       fill="transparent"
-                      strokeDasharray={strokeDasharray}
+                      strokeDasharray={animatedStrokeDasharray}
                       strokeDashoffset={strokeDashoffset}
                       transform={`rotate(-90 ${chartSize / 2} ${chartSize / 2})`}
                     />
@@ -231,11 +251,14 @@ export default function CategoryBreakdown({
                       borderRadius: 3,
                       overflow: 'hidden',
                     }}>
-                      <View style={{
+                      <Animated.View style={{
                         height: '100%',
                         backgroundColor: categoryColors[category.name] || defaultColors[index],
                         borderRadius: 3,
-                        width: `${category.percentage}%`
+                        width: animatedValues[index]?.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', `${category.percentage}%`],
+                        }) || `${category.percentage}%`,
                       }} />
                     </View>
                   </View>

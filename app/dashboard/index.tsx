@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryBreakdown from '../../components/CategoryBreakdown';
 import TransactionApprovalModal from '../../components/drawers/TransactionApprovalModal';
@@ -14,9 +14,33 @@ import { Transaction, TransactionService } from '../../services/TransactionServi
 import { AuthService } from '../../services/AuthService';
 
 const AnimatedNumber = ({ value, prefix = '₹', suffix = '' }: { value: string, prefix?: string, suffix?: string }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const targetValue = parseFloat(value);
+
+  useEffect(() => {
+    let start = 0;
+    const duration = 1000;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const now = Date.now();
+      const progress = Math.min((now - startTime) / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const current = start + (targetValue - start) * easeOut;
+      
+      setDisplayValue(current);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    animate();
+  }, [targetValue]);
+
   return (
     <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0d121b' }}>
-      {prefix}{value}{suffix}
+      {prefix}{displayValue.toFixed(2)}{suffix}
     </Text>
   );
 };

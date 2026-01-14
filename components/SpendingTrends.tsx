@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface SpendingTrendsProps {
@@ -8,6 +8,7 @@ interface SpendingTrendsProps {
 
 export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
   const [selectedType, setSelectedType] = React.useState<'income' | 'expenses' | 'net'>('net');
+  const barAnimations = React.useRef<Animated.Value[]>([]).current;
   // Calculate daily data from real transactions
   const getDailyData = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -39,6 +40,19 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
       return d.total;
     }), 1);
     
+    // Initialize animations
+    if (barAnimations.length === 0) {
+      dailyData.forEach(() => {
+        const anim = new Animated.Value(0);
+        barAnimations.push(anim);
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: false,
+        }).start();
+      });
+    }
+    
     return dailyData.map((data, index) => {
       const isActive = index === 3; // Thursday is active
       let barHeight = 0;
@@ -57,16 +71,31 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
         expenseHeight = barHeight - incomeHeight;
       }
       
+      const animatedHeight = barAnimations[index]?.interpolate({
+        inputRange: [0, 1],
+        outputRange: [8, Math.max(barHeight, 8)],
+      }) || Math.max(barHeight, 8);
+      
+      const animatedIncomeHeight = barAnimations[index]?.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, incomeHeight],
+      }) || incomeHeight;
+      
+      const animatedExpenseHeight = barAnimations[index]?.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, selectedType === 'net' ? expenseHeight : barHeight],
+      }) || (selectedType === 'net' ? expenseHeight : barHeight);
+      
       return (
         <View key={index} style={{ flex: 1, alignItems: 'center', gap: 12, height: '100%', justifyContent: 'flex-end' }}>
-          <View style={{
+          <Animated.View style={{
             width: 12,
             backgroundColor: '#f8fafc',
             borderRadius: 2,
             overflow: 'hidden',
             flexDirection: 'column',
             justifyContent: 'flex-end',
-            height: Math.max(barHeight, 8),
+            height: animatedHeight,
             shadowColor: isActive ? '#000' : 'transparent',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: isActive ? 0.1 : 0,
@@ -75,22 +104,22 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
           }}>
             {selectedType === 'net' && (
               <>
-                <View style={{
+                <Animated.View style={{
                   width: '100%',
                   backgroundColor: '#10b981',
                   opacity: 0.9,
-                  height: incomeHeight
+                  height: animatedIncomeHeight
                 }} />
                 <View style={{ width: '100%', height: 1, backgroundColor: 'white' }} />
               </>
             )}
-            <View style={{
+            <Animated.View style={{
               width: '100%',
               backgroundColor: selectedType === 'income' ? '#10b981' : '#EA2831',
               opacity: 0.9,
-              height: selectedType === 'net' ? expenseHeight : barHeight
+              height: animatedExpenseHeight
             }} />
-          </View>
+          </Animated.View>
           <Text style={{
             fontSize: 10,
             fontWeight: isActive ? 'bold' : '600',
