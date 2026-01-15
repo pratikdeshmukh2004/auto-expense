@@ -50,7 +50,11 @@ export default function SettingsBottomSheet({ visible, onClose, title, children 
           </View>
 
           {/* Content */}
-          <ScrollView style={{ flex: 1, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={{ flex: 1, paddingHorizontal: 24 }} 
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
             {children}
           </ScrollView>
         </View>

@@ -128,6 +128,8 @@ export default function DashboardIndex() {
     try {
       const { GmailService } = await import('../../services/GmailService');
       await GmailService.fetchTransactionEmails();
+      const SecureStore = await import('expo-secure-store');
+      await SecureStore.setItemAsync('last_email_sync', new Date().toISOString());
     } catch (error) {
       console.log('Error fetching Gmail transactions:', error);
     }

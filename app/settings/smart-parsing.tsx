@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from 'expo-secure-store';
 import TransactionModal from '../../components/drawers/TransactionModal';
 import { AuthService } from "../../services/AuthService";
 import { GmailService } from "../../services/GmailService";
@@ -35,19 +37,79 @@ export default function SmartParsing() {
   const [editCategoryValue, setEditCategoryValue] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [rejectedTransactions, setRejectedTransactions] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'configure' | 'activity'>('configure');
+  const [activitySubTab, setActivitySubTab] = useState<'pending' | 'rejected'>('pending');
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [lastSyncTime, setLastSyncTime] = useState<string>('Never');
 
   useEffect(() => {
     loadKeywords();
     loadUserEmail();
-    loadTransactionEmails();
     loadApprovedSenders();
     loadCategories();
     loadRejectedTransactions();
+    loadLastSyncTime();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadLastSyncTime();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      checkAutoParsingAndLoad();
+    }
+  }, [activeTab]);
+
+  const checkAutoParsingAndLoad = async () => {
+    const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+    if (autoParsingEnabled === 'false') {
+      Alert.alert(
+        'Auto-Parsing Disabled',
+        'Email transaction parsing is currently turned off. Enable it in Settings to automatically track transactions from your emails.',
+        [
+          { text: 'OK', style: 'cancel' },
+          { 
+            text: 'Enable Now', 
+            onPress: async () => {
+              await SecureStore.setItemAsync('auto_parsing_enabled', 'true');
+              loadTransactionEmails();
+            }
+          }
+        ]
+      );
+    } else {
+      loadTransactionEmails();
+    }
+  };
 
   const loadUserEmail = async () => {
     const email = await AuthService.getUserEmail();
     setUserEmail(email);
+  };
+
+  const loadLastSyncTime = async () => {
+    const lastSync = await SecureStore.getItemAsync('last_email_sync');
+    if (lastSync) {
+      const syncDate = new Date(lastSync);
+      const now = new Date();
+      const diffMs = now.getTime() - syncDate.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      if (diffMins < 1) {
+        setLastSyncTime('Just now');
+      } else if (diffMins < 60) {
+        setLastSyncTime(`${diffMins}m ago`);
+      } else if (diffMins < 1440) {
+        const hours = Math.floor(diffMins / 60);
+        setLastSyncTime(`${hours}h ago`);
+      } else {
+        const days = Math.floor(diffMins / 1440);
+        setLastSyncTime(`${days}d ago`);
+      }
+    }
   };
 
   const loadTransactionEmails = async () => {
@@ -55,6 +117,8 @@ export default function SmartParsing() {
     try {
       const transactions = await GmailService.fetchTransactionEmails();
       setRecentMessages(transactions);
+      await SecureStore.setItemAsync('last_email_sync', new Date().toISOString());
+      await loadLastSyncTime();
     } catch (error) {
       console.error("Error loading transaction emails:", error);
     } finally {
@@ -153,7 +217,7 @@ export default function SmartParsing() {
     const merchant = editedData?.merchant || message.merchant;
     const amount = editedData?.amount || message.amount;
     const category = editedData?.category || message.category;
-    const paymentMethod = editedData?.method || message.paymentMethod || "Unknown";
+    const paymentMethod = editedData?.method || message.paymentMethod || "Other";
     
     if (!merchant || !amount || !category || category === 'Others' || category === 'Other') {
       return;
@@ -161,21 +225,12 @@ export default function SmartParsing() {
     
     const existingMethods = await PaymentMethodService.getPaymentMethods();
     const methodExists = existingMethods.some(m => m.name === paymentMethod);
-    
-    if (!methodExists && paymentMethod !== "Unknown") {
-      await PaymentMethodService.addPaymentMethod({
-        name: paymentMethod,
-        type: 'card',
-        icon: 'card',
-        color: '#3b82f6',
-      });
-    }
 
     const transaction = {
       merchant,
       amount,
       category,
-      paymentMethod: paymentMethod,
+      paymentMethod: methodExists ? paymentMethod : 'Other',
       date: message.date,
       type: "expense" as const,
       status: "pending" as const,
@@ -209,6 +264,7 @@ export default function SmartParsing() {
         rawMessage: message.message,
       });
       await loadRejectedTransactions();
+      setActivitySubTab('rejected');
     }
     setRecentMessages((prev) => prev.filter((m) => m.id !== messageId));
     setEditingFields((prev) => {
@@ -279,23 +335,25 @@ export default function SmartParsing() {
 
   const handleRestoreRejected = async (transaction: any) => {
     await TransactionService.deleteTransaction(transaction.id);
-    await TransactionService.addTransaction({
-      merchant: transaction.merchant,
-      amount: transaction.amount,
-      category: transaction.category,
-      paymentMethod: transaction.paymentMethod,
-      date: transaction.date,
-      type: 'expense',
-      status: 'pending',
-      rawMessage: transaction.message,
-      notes: transaction.sender,
-    });
     await loadRejectedTransactions();
+    await loadTransactionEmails();
   };
 
   const handleDeleteRejected = async (id: string) => {
     await TransactionService.deleteTransaction(id);
     await loadRejectedTransactions();
+  };
+
+  const toggleMessageExpand = (messageId: string) => {
+    setExpandedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -314,6 +372,22 @@ export default function SmartParsing() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'configure' && styles.activeTab]}
+          onPress={() => setActiveTab('configure')}
+        >
+          <Text style={[styles.tabText, activeTab === 'configure' && styles.activeTabText]}>Configure</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
+          onPress={() => setActiveTab('activity')}
+        >
+          <Text style={[styles.tabText, activeTab === 'activity' && styles.activeTabText]}>Activity</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -321,274 +395,287 @@ export default function SmartParsing() {
           <RefreshControl
             refreshing={loadingMessages}
             onRefresh={() => {
-              loadTransactionEmails();
+              if (activeTab === 'activity') {
+                loadTransactionEmails();
+              }
               loadRejectedTransactions();
             }}
             tintColor="#EA2831"
           />
         }
       >
-        {/* Receivers Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>RECEIVERS</Text>
-        </View>
-
-        {/* SMS Coming Soon */}
-        <View style={styles.comingSoonGradient}>
-          <View style={styles.comingSoonContent}>
-            <View style={styles.smsIconContainer}>
-              <Ionicons name="chatbubble" size={20} color="white" />
-            </View>
-            <View style={styles.smsTextContainer}>
-              <View style={styles.smsHeaderRow}>
-                <Text style={styles.smsTitle}>SMS Messages</Text>
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              </View>
-              <Text style={styles.smsSubtitle}>
-                Automated parsing for text notifications
+        {activeTab === 'configure' ? (
+          <>
+            {/* Receivers Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>RECEIVERS</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                Connect accounts to automatically track transactions
               </Text>
             </View>
-          </View>
-        </View>
 
-        <View style={styles.divider} />
-
-        {/* Email Accounts */}
-        <View style={styles.emailSection}>
-          <View style={styles.emailHeader}>
-            <Text style={styles.emailTitle}>EMAIL ACCOUNTS</Text>
-            {userEmail && (
-              <View style={styles.connectedBadge}>
-                <Text style={styles.connectedText}>1 Connected</Text>
+            {/* SMS Messages Card */}
+            <View style={{
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: 16,
+              marginBottom: 12,
+              marginHorizontal: 24,
+            }}>
+              <View style={{
+                backgroundColor: 'rgba(234, 40, 49, 0.05)',
+                borderWidth: 1,
+                borderColor: 'rgba(234, 40, 49, 0.2)',
+                padding: 16,
+              }}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
+                    <View style={styles.emailIconContainer}>
+                      <Ionicons name="chatbubble" size={20} color="#EA2831" />
+                    </View>
+                    <View>
+                      <Text style={styles.cardTitle}>SMS Messages</Text>
+                      <Text style={styles.cardSubtitle}>Automated SMS transaction parsing</Text>
+                    </View>
+                  </View>
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonText}>COMING SOON</Text>
+                  </View>
+                </View>
               </View>
-            )}
-          </View>
+              <View style={{
+                position: 'absolute',
+                right: -48,
+                top: -48,
+                width: 128,
+                height: 128,
+                backgroundColor: 'rgba(234, 40, 49, 0.05)',
+                borderRadius: 64,
+              }} />
+            </View>
 
-          <View style={styles.emailList}>
-            {userEmail && (
-              <View style={styles.emailItem}>
-                <View style={styles.emailLeft}>
-                  <View style={styles.emailIcon}>
-                    <Ionicons name="person" size={18} color="#EA2831" />
+            {/* Email Accounts Card */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardHeaderLeft}>
+                  <View style={styles.emailIconContainer}>
+                    <Ionicons name="mail" size={20} color="#EA2831" />
                   </View>
                   <View>
-                    <Text style={styles.emailAddress}>{userEmail}</Text>
-                    <Text style={styles.emailSync}>Synced just now</Text>
+                    <Text style={styles.cardTitle}>Email Accounts</Text>
+                    <Text style={styles.cardSubtitle}>{userEmail ? '1 account connected' : 'No accounts connected'}</Text>
                   </View>
                 </View>
-                <View style={styles.emailActions}>
-                  <TouchableOpacity
-                    style={styles.emailActionButton}
-                    onPress={loadTransactionEmails}
-                  >
-                    <Ionicons name="refresh" size={18} color="#EA2831" />
+              </View>
+
+              {userEmail && (
+                <View style={styles.emailItem}>
+                  <View style={styles.emailLeft}>
+                    <View style={styles.emailAvatar}>
+                      <Ionicons name="person" size={16} color="#64748b" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emailAddress}>{userEmail}</Text>
+                      <Text style={styles.emailSync}>Last sync: {lastSyncTime}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={loadTransactionEmails}>
+                    <Ionicons name="refresh" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.addButton}>
+                <Ionicons name="add-circle" size={20} color="#EA2831" />
+                <Text style={styles.addButtonText}>Add Email Account</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Active Keywords Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>ACTIVE KEYWORDS</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                Keywords help identify transaction emails from banks and payment apps
+              </Text>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.keywordsContainer}>
+                {keywords.map((keyword, index) => (
+                  <View key={index} style={styles.keywordTag}>
+                    <Text style={styles.keywordText}>{keyword}</Text>
+                    <TouchableOpacity
+                      onPress={() => removeKeyword(index)}
+                      style={styles.keywordCloseButton}
+                    >
+                      <Ionicons name="close" size={14} color="#64748b" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.dividerLine} />
+
+              <View style={styles.addKeywordSection}>
+                <Text style={styles.inputLabel}>ADD NEW KEYWORD</Text>
+                <View style={styles.addKeywordRow}>
+                  <TextInput
+                    style={styles.keywordInput}
+                    placeholder="e.g. Amazon"
+                    value={newKeyword}
+                    onChangeText={setNewKeyword}
+                    placeholderTextColor="#94a3b8"
+                  />
+                  <TouchableOpacity style={styles.addKeywordButton} onPress={addKeyword}>
+                    <Text style={styles.addKeywordButtonText}>Add</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            )}
-          </View>
-
-          <TouchableOpacity style={styles.addEmailButton}>
-            <Ionicons name="add-circle" size={18} color="#EA2831" />
-            <Text style={styles.addEmailText}>Add Email Account</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Keywords Section */}
-        <View style={styles.section}>
-          <View style={styles.keywordsContent}>
-            <Text style={styles.sectionTitle}>ACTIVE KEYWORDS</Text>
-
-            <View style={styles.keywordsContainer}>
-              {keywords.map((keyword, index) => (
-                <View key={index} style={styles.keywordTag}>
-                  <Text style={styles.keywordText}>{keyword}</Text>
-                  <TouchableOpacity
-                    onPress={() => removeKeyword(index)}
-                    style={styles.keywordCloseButton}
-                  >
-                    <Ionicons name="close" size={16} color="#94a3b8" />
-                  </TouchableOpacity>
-                </View>
-              ))}
             </View>
-          </View>
 
-          <View style={styles.keywordsDivider} />
-
-          <View style={styles.addKeywordSection}>
-            <Text style={styles.inputLabel}>ADD NEW KEYWORD</Text>
-            <View style={styles.addKeywordRow}>
-              <TextInput
-                style={styles.keywordInput}
-                placeholder="e.g. Amazon"
-                value={newKeyword}
-                onChangeText={setNewKeyword}
-                placeholderTextColor="#94a3b8"
-              />
-              <TouchableOpacity style={styles.addButton} onPress={addKeyword}>
-                <Text style={styles.addButtonText}>Add</Text>
-              </TouchableOpacity>
+            {/* Approved Senders Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>APPROVED SENDERS</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                Trusted senders whose transactions are auto-approved
+              </Text>
             </View>
-          </View>
-        </View>
 
-        {/* Recent Transactions Divider */}
-        <View style={styles.dividerSection}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>APPROVED SENDERS</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Approved Senders */}
-        {approvedSenders.length > 0 ? (
-          <View style={{ gap: 12, marginBottom: 16 }}>
-            {approvedSenders.map((sender, index) => {
-              const name = sender.sender.split('<')[0].trim();
-              const email = sender.sender.match(/<(.+)>/)?.[1] || sender.sender;
-              const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-              const isEditing = editingSenderCategory === sender.sender;
-              
-              return (
-                <View key={index} style={{
-                  backgroundColor: 'white',
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: '#f1f5f9',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: '#10b981',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+            {approvedSenders.length > 0 ? (
+              <View style={{ gap: 12, marginBottom: 16, marginHorizontal: 24 }}>
+                {approvedSenders.map((sender, index) => {
+                  const name = sender.sender.split('<')[0].trim();
+                  const email = sender.sender.match(/<(.+)>/)?.[1] || sender.sender;
+                  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                  const isEditing = editingSenderCategory === sender.sender;
+                  
+                  return (
+                    <View key={index} style={{
+                      backgroundColor: 'white',
+                      borderRadius: 16,
+                      padding: 16,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                      elevation: 1,
                     }}>
-                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>{initials}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937' }} numberOfLines={1}>{name}</Text>
-                      <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }} numberOfLines={1}>{email}</Text>
-                      {isEditing ? (
-                        <View style={{ marginTop: 8 }}>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16, paddingHorizontal: 16 }}>
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                              {categories.map((cat) => (
-                                <TouchableOpacity
-                                  key={cat.id}
-                                  onPress={() => updateSenderCategory(sender.sender, cat.name)}
-                                  style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    backgroundColor: editCategoryValue === cat.name ? '#10b981' : '#f8fafc',
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 6,
-                                    borderRadius: 8,
-                                    borderWidth: 1,
-                                    borderColor: editCategoryValue === cat.name ? '#10b981' : '#e2e8f0',
-                                  }}
-                                >
-                                  <Ionicons name={cat.icon} size={14} color={editCategoryValue === cat.name ? 'white' : '#64748b'} />
-                                  <Text style={{ fontSize: 12, fontWeight: '600', color: editCategoryValue === cat.name ? 'white' : '#1f2937' }}>{cat.name}</Text>
-                                </TouchableOpacity>
-                              ))}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={styles.senderAvatar}>
+                          <Text style={styles.senderInitials}>{initials}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.senderName} numberOfLines={1}>{name}</Text>
+                          <Text style={styles.senderEmail} numberOfLines={1}>{email}</Text>
+                          {isEditing ? (
+                            <View style={{ marginTop: 8 }}>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                  {categories.map((cat) => (
+                                    <TouchableOpacity
+                                      key={cat.id}
+                                      onPress={() => updateSenderCategory(sender.sender, cat.name)}
+                                      style={[
+                                        styles.categoryChip,
+                                        editCategoryValue === cat.name && styles.categoryChipActive
+                                      ]}
+                                    >
+                                      <Ionicons name={cat.icon} size={12} color={editCategoryValue === cat.name ? 'white' : '#64748b'} />
+                                      <Text style={[
+                                        styles.categoryChipText,
+                                        editCategoryValue === cat.name && styles.categoryChipTextActive
+                                      ]}>{cat.name}</Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setEditingSenderCategory(null);
+                                      setEditCategoryValue("");
+                                    }}
+                                    style={styles.categoryChipCancel}
+                                  >
+                                    <Ionicons name="close" size={14} color="#64748b" />
+                                  </TouchableOpacity>
+                                </View>
+                              </ScrollView>
+                            </View>
+                          ) : (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                              <View style={styles.categoryBadge}>
+                                <Text style={styles.categoryBadgeText}>{sender.category}</Text>
+                              </View>
                               <TouchableOpacity
                                 onPress={() => {
-                                  setEditingSenderCategory(null);
-                                  setEditCategoryValue("");
-                                }}
-                                style={{
-                                  backgroundColor: '#f1f5f9',
-                                  paddingHorizontal: 12,
-                                  paddingVertical: 6,
-                                  borderRadius: 8,
+                                  setEditingSenderCategory(sender.sender);
+                                  setEditCategoryValue(sender.category);
                                 }}
                               >
-                                <Ionicons name="close" size={16} color="#64748b" />
+                                <Ionicons name="create-outline" size={14} color="#94a3b8" />
                               </TouchableOpacity>
                             </View>
-                          </ScrollView>
+                          )}
                         </View>
-                      ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                          <View style={{
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 6,
-                          }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#10b981' }}>{sender.category}</Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => {
-                              setEditingSenderCategory(sender.sender);
-                              setEditCategoryValue(sender.category);
-                            }}
-                          >
-                            <Ionicons name="create-outline" size={14} color="#94a3b8" />
-                          </TouchableOpacity>
-                        </View>
-                      )}
+                        <TouchableOpacity
+                          onPress={() => removeSender(sender.sender)}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: '#fef2f2',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <TouchableOpacity
-                      onPress={() => removeSender(sender.sender)}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: '#fef2f2',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="people-outline" size={28} color="#10b981" />
                 </View>
-              );
-            })}
-          </View>
+                <Text style={styles.emptyTitle}>No Approved Senders</Text>
+                <Text style={styles.emptySubtitle}>Approve transactions to auto-add future emails</Text>
+              </View>
+            )}
+          </>
         ) : (
-          <View style={{
-            backgroundColor: 'white',
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#f1f5f9',
-            padding: 32,
-            alignItems: 'center',
-            marginBottom: 16,
-          }}>
-            <View style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 12,
-            }}>
-              <Ionicons name="people-outline" size={28} color="#10b981" />
+          <>
+            {/* Activity Sub-Tabs */}
+            <View style={styles.subTabContainer}>
+              <TouchableOpacity
+                style={styles.subTab}
+                onPress={() => setActivitySubTab('pending')}
+              >
+                <Text style={[styles.subTabText, activitySubTab === 'pending' && styles.activeSubTabText]}>Pending</Text>
+                {activitySubTab === 'pending' && <View style={styles.subTabIndicator} />}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.subTab}
+                onPress={() => setActivitySubTab('rejected')}
+              >
+                <Text style={[styles.subTabText, activitySubTab === 'rejected' && styles.activeSubTabText]}>Rejected</Text>
+                {activitySubTab === 'rejected' && <View style={styles.subTabIndicator} />}
+              </TouchableOpacity>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 }}>No Approved Senders</Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>Approve transactions below to auto-add future emails</Text>
-          </View>
-        )}
 
-        {/* Recent Transactions Divider */}
-        <View style={styles.dividerSection}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>RECENT TRANSACTIONS</Text>
-          <View style={styles.dividerLine} />
-        </View>
+            {activitySubTab === 'pending' ? (
+              <>
+            {/* Activity Tab Content */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>RECENT TRANSACTIONS</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                Review and approve parsed transactions from your emails
+              </Text>
+            </View>
 
         {/* Recent Transactions */}
         {loadingMessages ? (
-          <View style={{ padding: 40, alignItems: "center" }}>
+          <View style={{ padding: 40, alignItems: "center", marginHorizontal: 24 }}>
             <Text style={{ color: "#94a3b8", fontSize: 14 }}>
               Loading messages...
             </Text>
@@ -596,10 +683,6 @@ export default function SmartParsing() {
         ) : recentMessages.length === 0 ? (
           <View
             style={{
-              backgroundColor: "white",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#f1f5f9",
               padding: 40,
               alignItems: "center",
               marginBottom: 16,
@@ -660,7 +743,17 @@ export default function SmartParsing() {
                   </View>
                 </View>
                 <View style={styles.rawMessageContainer}>
-                  <Text style={styles.rawMessageText}>{message.message}</Text>
+                  <Text style={styles.rawMessageText} numberOfLines={expandedMessages.has(message.id) ? undefined : 2}>
+                    {message.message}
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => toggleMessageExpand(message.id)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <Text style={{ fontSize: 11, color: '#EA2831', fontWeight: '600' }}>
+                      {expandedMessages.has(message.id) ? 'Show less' : 'Show email'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.inlineFormSection}>
                   <View style={styles.inlineFormField}>
@@ -761,22 +854,35 @@ export default function SmartParsing() {
           );
           })
         )}
+              </>
+            ) : (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>REJECTED TRANSACTIONS</Text>
+                  <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                    Transactions you've rejected - restore or delete permanently
+                  </Text>
+                </View>
 
-        {/* Rejected Transactions Section */}
-        {rejectedTransactions.length > 0 && (
-          <>
-            <View style={styles.dividerSection}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>REJECTED TRANSACTIONS</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {rejectedTransactions.map((transaction) => (
+                {rejectedTransactions.length === 0 ? (
+                  <View style={{
+                    padding: 40,
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}>
+                    <View style={styles.emptyIcon}>
+                      <Ionicons name="checkmark-circle-outline" size={28} color="#10b981" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No Rejected Transactions</Text>
+                    <Text style={styles.emptySubtitle}>All transactions have been reviewed</Text>
+                  </View>
+                ) : (
+                  rejectedTransactions.map((transaction) => (
               <View key={transaction.id} style={styles.rejectedCard}>
                 <View style={styles.messageContent}>
                   <View style={styles.messageHeader}>
                     <View style={styles.rejectedIcon}>
-                      <Ionicons name="close-circle" size={20} color="#ef4444" />
+                      <Ionicons name="close-circle" size={20} color="#EA2831" />
                     </View>
                     <View style={styles.messageInfo}>
                       <View style={styles.messageTopRow}>
@@ -789,6 +895,44 @@ export default function SmartParsing() {
                   </View>
                   <View style={styles.rawMessageContainer}>
                     <Text style={styles.rawMessageText}>{transaction.message}</Text>
+                  </View>
+                  <View style={styles.inlineFormSection}>
+                    <View style={styles.inlineFormField}>
+                      <View style={[styles.fieldIconContainer, { backgroundColor: "rgba(234, 40, 49, 0.1)", borderColor: "rgba(234, 40, 49, 0.2)" }]}>
+                        <Ionicons name="storefront" size={20} color="#EA2831" />
+                      </View>
+                      <View style={styles.fieldContent}>
+                        <Text style={[styles.inlineFieldLabel, { color: "#EA2831" }]}>Merchant</Text>
+                        <Text style={styles.inlineFieldInput} numberOfLines={1}>{transaction.merchant}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.inlineFormField}>
+                      <View style={[styles.fieldIconContainer, { backgroundColor: "rgba(234, 40, 49, 0.1)", borderColor: "rgba(234, 40, 49, 0.2)" }]}>
+                        <Ionicons name="cash" size={20} color="#EA2831" />
+                      </View>
+                      <View style={styles.fieldContent}>
+                        <Text style={[styles.inlineFieldLabel, { color: "#EA2831" }]}>Amount</Text>
+                        <Text style={[styles.inlineFieldInput, { fontFamily: "monospace" }]}>₹{transaction.amount}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.inlineFormField}>
+                      <View style={[styles.fieldIconContainer, { backgroundColor: "rgba(234, 40, 49, 0.1)", borderColor: "rgba(234, 40, 49, 0.2)" }]}>
+                        <Ionicons name="card" size={20} color="#EA2831" />
+                      </View>
+                      <View style={styles.fieldContent}>
+                        <Text style={[styles.inlineFieldLabel, { color: "#EA2831" }]}>Method</Text>
+                        <Text style={styles.inlineFieldInput}>{transaction.paymentMethod || "Unknown"}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.inlineFormField}>
+                      <View style={[styles.fieldIconContainer, { backgroundColor: "rgba(234, 40, 49, 0.1)", borderColor: "rgba(234, 40, 49, 0.2)" }]}>
+                        <Ionicons name="pricetag" size={20} color="#EA2831" />
+                      </View>
+                      <View style={styles.fieldContent}>
+                        <Text style={[styles.inlineFieldLabel, { color: "#EA2831" }]}>Category</Text>
+                        <Text style={styles.inlineFieldInput}>{transaction.category}</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
 
@@ -808,8 +952,11 @@ export default function SmartParsing() {
                     <Text style={styles.approveText}>Restore</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            ))}
+                  </View>
+                  ))
+                )}
+              </>
+            )}
           </>
         )}
 
@@ -817,8 +964,9 @@ export default function SmartParsing() {
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={18} color="#1d4ed8" />
           <Text style={styles.infoText}>
-            Correcting these values helps the app learn your transaction
-            patterns. Tap text in the snippet to quick-select.
+            {activeTab === 'configure' 
+              ? 'Configure email accounts and keywords to automatically parse transaction notifications.'
+              : 'Review and approve parsed transactions. Correcting values helps the app learn your patterns.'}
           </Text>
         </View>
       </ScrollView>
@@ -855,14 +1003,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: "rgba(248, 246, 246, 0.9)",
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#f1f5f9",
   },
   backButton: {
     padding: 8,
     marginLeft: -8,
-    borderRadius: 20,
   },
   headerCenter: {
     alignItems: "center",
@@ -871,141 +1018,121 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#1f2937",
-    letterSpacing: -0.5,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+  },
+  activeTab: {
+    backgroundColor: "#EA2831",
+    shadowColor: "#EA2831",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#94a3b8",
+  },
+  activeTabText: {
+    color: "white",
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-  },
-  section: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-    marginTop: 24,
-    overflow: "hidden",
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 6,
     paddingVertical: 16,
-    paddingBottom: 12,
     paddingTop: 24,
+    paddingHorizontal: 24,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "bold",
     color: "#94a3b8",
     letterSpacing: 1,
   },
-  sectionContent: {
-    padding: 20,
-  },
-  comingSoonGradient: {
-    backgroundColor: "rgba(234, 40, 49, 0.05)",
-    borderRadius: 12,
+  card: {
+    backgroundColor: "white",
+    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(234, 40, 49, 0.2)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: 6,
+    marginBottom: 12,
+    marginHorizontal: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  comingSoonContent: {
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  cardHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
+  },
+  emailIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(234, 40, 49, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   smsIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#ea2a33",
+    backgroundColor: "#f1f5f9",
     alignItems: "center",
     justifyContent: "center",
   },
-  smsTextContainer: {
-    flex: 1,
-  },
-  smsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  smsTitle: {
+  cardTitle: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#0f172a",
+    color: "#1f2937",
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
   },
   comingSoonBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    backgroundColor: "rgba(234, 40, 49, 0.1)",
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(234, 40, 49, 0.2)",
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   comingSoonText: {
     fontSize: 9,
     fontWeight: "bold",
     color: "#EA2831",
-  },
-  smsSubtitle: {
-    fontSize: 10,
-    color: "#475569",
-    marginTop: 2,
-  },
-  lockIcon: {
-    opacity: 0.5,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#f1f5f9",
-    marginVertical: 24,
-    marginHorizontal: 2,
-  },
-  emailSection: {
-    gap: 16,
-    marginHorizontal: 6,
-  },
-  emailHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  emailTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#94a3b8",
-    letterSpacing: 1,
-  },
-  connectedBadge: {
-    backgroundColor: "#f1f5f9",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-  },
-  connectedText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#64748b",
-  },
-  emailList: {
-    gap: 12,
+    letterSpacing: 0.5,
   },
   emailItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
   emailLeft: {
     flexDirection: "row",
@@ -1013,62 +1140,45 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  emailIcon: {
+  emailAvatar: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: "white",
+    borderRadius: 16,
+    backgroundColor: "#f8fafc",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
   },
   emailAddress: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#374151",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1f2937",
   },
   emailSync: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#94a3b8",
+    marginTop: 2,
   },
-  emailActions: {
-    flexDirection: "row",
-    gap: 0,
-  },
-  emailActionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addEmailButton: {
+  addButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(234, 40, 49, 0.3)",
+    borderWidth: 1.5,
+    borderColor: "rgba(234, 40, 49, 0.2)",
     borderRadius: 12,
-    backgroundColor: "rgba(234, 40, 49, 0.05)",
+    borderStyle: "dashed",
+    marginTop: 12,
   },
-  addEmailText: {
-    fontSize: 12,
+  addButtonText: {
+    fontSize: 13,
     fontWeight: "bold",
     color: "#EA2831",
-  },
-  keywordsContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 12,
   },
   keywordsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 12,
   },
   keywordTag: {
     flexDirection: "row",
@@ -1077,37 +1187,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 8,
-    paddingLeft: 12,
+    paddingLeft: 10,
     paddingRight: 4,
-    paddingVertical: 4,
-    gap: 4,
+    paddingVertical: 6,
+    gap: 6,
   },
   keywordText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#374151",
   },
   keywordCloseButton: {
-    padding: 4,
-    borderRadius: 6,
+    padding: 2,
   },
-  keywordsDivider: {
+  dividerLine: {
     height: 1,
     backgroundColor: "#f1f5f9",
-    width: "100%",
-    marginVertical: 0,
+    marginVertical: 16,
   },
   addKeywordSection: {
-    backgroundColor: "white",
-    padding: 16,
+    gap: 8,
   },
   inputLabel: {
     fontSize: 10,
     fontWeight: "bold",
     color: "#94a3b8",
     letterSpacing: 1,
-    marginBottom: 8,
-    marginLeft: 4,
   },
   addKeywordRow: {
     flexDirection: "row",
@@ -1115,44 +1220,125 @@ const styles = StyleSheet.create({
   },
   keywordInput: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#0f172a",
+    color: "#1f2937",
   },
-  addButton: {
+  addKeywordButton: {
     backgroundColor: "#EA2831",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
     justifyContent: "center",
   },
-  addButtonText: {
+  addKeywordButtonText: {
     color: "white",
     fontSize: 14,
     fontWeight: "bold",
   },
-  dividerSection: {
+  senderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#10b981",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  senderInitials: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "white",
+  },
+  senderName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1f2937",
+  },
+  senderEmail: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  categoryChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginVertical: 24,
+    gap: 4,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  categoryChipActive: {
+    backgroundColor: "#10b981",
+    borderColor: "#10b981",
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#1f2937",
+  },
+  categoryChipTextActive: {
+    color: "white",
+  },
+  categoryChipCancel: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  categoryBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e5e7eb",
-  },
-  dividerText: {
+  categoryBadgeText: {
     fontSize: 10,
     fontWeight: "bold",
+    color: "#10b981",
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#fef2f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 32,
+    alignItems: "center",
+    marginBottom: 16,
+    marginHorizontal: 24,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 12,
     color: "#94a3b8",
-    letterSpacing: 1,
+    textAlign: "center",
   },
   messageCard: {
     backgroundColor: "white",
@@ -1160,6 +1346,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1f5f9",
     marginBottom: 16,
+    marginHorizontal: 24,
     overflow: "hidden",
   },
   messageContent: {
@@ -1306,6 +1493,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 40,
+    marginTop: 16,
+    marginHorizontal: 24,
   },
   infoText: {
     flex: 1,
@@ -1314,22 +1503,23 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   rejectedCard: {
-    backgroundColor: "#fef2f2",
+    backgroundColor: "rgba(234, 40, 49, 0.05)",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: "rgba(234, 40, 49, 0.2)",
     marginBottom: 16,
+    marginHorizontal: 24,
     overflow: "hidden",
   },
   rejectedIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#fee2e2",
+    backgroundColor: "rgba(234, 40, 49, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: "rgba(234, 40, 49, 0.2)",
     flexShrink: 0,
   },
   deleteButton: {
@@ -1342,12 +1532,12 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: "rgba(234, 40, 49, 0.3)",
   },
   deleteText: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#ef4444",
+    color: "#EA2831",
   },
   restoreButton: {
     flex: 1,
@@ -1360,5 +1550,34 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10b981",
+  },
+  subTabContainer: {
+    flexDirection: "row",
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: "#f8f6f6",
+  },
+  subTab: {
+    flex: 1,
+    paddingBottom: 12,
+    position: "relative",
+    alignItems: "center",
+  },
+  subTabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#94a3b8",
+  },
+  activeSubTabText: {
+    color: "#EA2831",
+  },
+  subTabIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: "#EA2831",
+    borderRadius: 1,
   },
 });

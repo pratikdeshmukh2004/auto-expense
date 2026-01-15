@@ -68,7 +68,7 @@ export class PaymentMethodService {
   static async deletePaymentMethod(id: string): Promise<void> {
     try {
       // Prevent deleting default payment methods
-      const defaultIds = ['1', '2', '3', '4'];
+      const defaultIds = ['1', '2', '3', '4', '5'];
       if (defaultIds.includes(id)) {
         throw new Error('Cannot delete default payment methods');
       }
@@ -88,6 +88,7 @@ export class PaymentMethodService {
       { id: '2', name: 'Savings Account', type: 'bank', icon: 'wallet', color: '#10b981', description: 'Main savings account' },
       { id: '3', name: 'Cash', type: 'cash', icon: 'cash', color: '#f59e0b', description: 'Physical cash payments' },
       { id: '4', name: 'Paytm Wallet', type: 'wallet', icon: 'phone-portrait', color: '#8b5cf6', description: 'Digital wallet' },
+      { id: '5', name: 'Other', type: 'card', icon: 'ellipsis-horizontal', color: '#6b7280', description: 'Other payment methods' },
     ];
   }
 }

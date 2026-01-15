@@ -25,7 +25,9 @@ export default function RootLayout() {
   
   const checkAuth = async () => {
     const isLoggedIn = await AuthService.isLoggedIn();
-    if (isLoggedIn && pathname === '/') {
+    const hasMpin = await AuthService.getMpin();
+    
+    if (isLoggedIn && hasMpin && (pathname === '/' || pathname === '/auth/login')) {
       router.replace('/auth/mpin');
     }
     setIsChecking(false);

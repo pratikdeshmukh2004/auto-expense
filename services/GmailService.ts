@@ -45,13 +45,28 @@ export class GmailService {
 
   static async fetchTransactionEmails(): Promise<ParsedTransaction[]> {
     try {
+      const SecureStore = await import('expo-secure-store');
+      const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+      if (autoParsingEnabled === 'false') {
+        console.log('Auto-parsing is disabled');
+        return [];
+      }
+
       const token = await this.getAccessToken();
       if (!token) {
         console.log('No access token found');
         return [];
       }
 
-      const keywords = await NotificationParser.getKeywords();
+      let keywords = await NotificationParser.getKeywords();
+      
+      // Add default keywords if not already present
+      const defaultKeywords = ['Jupiter', 'HDFC', 'BOI', 'SBI', 'UPI', 'Credited', 'Debited', 'Salary'];
+      const newKeywords = defaultKeywords.filter(k => !keywords.includes(k));
+      if (newKeywords.length > 0) {
+        keywords = [...keywords, ...newKeywords];
+        await NotificationParser.saveKeywords(keywords);
+      }
       
       if (keywords.length === 0) {
         console.log('No keywords configured');
@@ -120,21 +135,12 @@ export class GmailService {
               if (approvedSender) {
                 const existingMethods = await PaymentMethodService.getPaymentMethods();
                 const methodExists = existingMethods.some(m => m.name === parsed.paymentMethod);
-                
-                if (!methodExists && parsed.paymentMethod !== "Unknown") {
-                  await PaymentMethodService.addPaymentMethod({
-                    name: parsed.paymentMethod,
-                    type: 'card',
-                    icon: 'card',
-                    color: '#3b82f6',
-                  });
-                }
 
                 await TransactionService.addTransaction({
                   merchant: parsed.merchant,
                   amount: parsed.amount,
                   category: approvedSender.category,
-                  paymentMethod: parsed.paymentMethod || 'Unknown',
+                  paymentMethod: methodExists ? (parsed.paymentMethod || 'Other') : 'Other',
                   date: new Date(parsed.date).toISOString(),
                   type: 'expense',
                   status: 'pending',
@@ -194,25 +200,33 @@ export class GmailService {
       
       // Check if it's a UPI transaction
       const isUpiTransaction = subject.toLowerCase().includes('you have done a upi txn') || 
-                               fullMessage.toLowerCase().includes('upi transaction');
+                               subject.toLowerCase().includes('upi payment was successful') ||
+                               fullMessage.toLowerCase().includes('upi transaction') ||
+                               fullMessage.toLowerCase().includes('your upi payment');
       
       let merchant = 'Unknown';
       let amount = '0.00';
       let paymentMethod = 'UPI';
       
       if (isUpiTransaction) {
-        // Extract amount
-        const amountMatch = fullMessage.match(/(?:Rs\.?|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i);
+        // Extract amount - handle both ₹230 and Rs. 230 formats
+        const amountMatch = fullMessage.match(/(?:You paid|Rs\.?|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i);
         amount = amountMatch ? amountMatch[1].replace(/,/g, '') : '0.00';
         
-        // Extract merchant name (after UPI ID)
-        const upiMerchantMatch = fullMessage.match(/to\s+[A-Z0-9]+@[a-z]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
-        if (upiMerchantMatch) {
-          merchant = upiMerchantMatch[1].trim();
+        // Extract merchant name - look for "Paid to" section
+        const paidToMatch = fullMessage.match(/Paid to[\s\n]+([A-Z][A-Z\s&]+?)(?:[\s\n]+[a-z0-9@]|$)/i);
+        if (paidToMatch) {
+          merchant = paidToMatch[1].trim();
         } else {
-          const nameMatch = fullMessage.match(/to\s+[^\s]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
-          if (nameMatch) {
-            merchant = nameMatch[1].trim();
+          // Fallback: Extract merchant name (after UPI ID)
+          const upiMerchantMatch = fullMessage.match(/to\s+[A-Z0-9]+@[a-z]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
+          if (upiMerchantMatch) {
+            merchant = upiMerchantMatch[1].trim();
+          } else {
+            const nameMatch = fullMessage.match(/to\s+[^\s]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
+            if (nameMatch) {
+              merchant = nameMatch[1].trim();
+            }
           }
         }
         
@@ -282,21 +296,39 @@ export class GmailService {
     const lowerMerchant = merchant.toLowerCase();
     const lowerContent = content.toLowerCase();
 
-    if (lowerMerchant.includes('amazon') || lowerMerchant.includes('flipkart') || lowerContent.includes('shopping')) {
-      return 'Shopping';
-    }
-    if (lowerMerchant.includes('uber') || lowerMerchant.includes('ola') || lowerContent.includes('ride')) {
-      return 'Transport';
-    }
-    if (lowerMerchant.includes('swiggy') || lowerMerchant.includes('zomato') || lowerContent.includes('food')) {
+    // Food & Dining
+    if (lowerMerchant.includes('restaurant') || lowerMerchant.includes('cafe') || lowerMerchant.includes('sweets') ||
+        lowerMerchant.includes('food') || lowerMerchant.includes('kitchen') || lowerMerchant.includes('dhaba') ||
+        lowerContent.includes('food') || lowerContent.includes('sweet') || lowerContent.includes('dinner') ||
+        lowerContent.includes('lunch') || lowerContent.includes('breakfast') || lowerContent.includes('meal') ||
+        lowerMerchant.includes('swiggy') || lowerMerchant.includes('zomato') || lowerContent.includes('food delivery')) {
       return 'Food & Dining';
     }
-    if (lowerMerchant.includes('netflix') || lowerMerchant.includes('spotify') || lowerContent.includes('subscription')) {
+    
+    // Shopping
+    if (lowerMerchant.includes('amazon') || lowerMerchant.includes('flipkart') || lowerContent.includes('shopping') ||
+        lowerMerchant.includes('store') || lowerMerchant.includes('mart') || lowerMerchant.includes('mall')) {
+      return 'Shopping';
+    }
+    
+    // Transport
+    if (lowerMerchant.includes('uber') || lowerMerchant.includes('ola') || lowerContent.includes('ride') ||
+        lowerMerchant.includes('taxi') || lowerMerchant.includes('cab') || lowerContent.includes('transport')) {
+      return 'Transport';
+    }
+    
+    // Entertainment
+    if (lowerMerchant.includes('netflix') || lowerMerchant.includes('spotify') || lowerContent.includes('subscription') ||
+        lowerMerchant.includes('movie') || lowerMerchant.includes('cinema') || lowerContent.includes('entertainment')) {
       return 'Entertainment';
     }
-    if (lowerContent.includes('grocery') || lowerContent.includes('supermarket')) {
+    
+    // Groceries
+    if (lowerContent.includes('grocery') || lowerContent.includes('supermarket') || lowerMerchant.includes('grocery') ||
+        lowerMerchant.includes('vegetables') || lowerMerchant.includes('fruits')) {
       return 'Groceries';
     }
+    
     return 'Others';
   }
 

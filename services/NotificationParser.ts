@@ -23,7 +23,7 @@ export class NotificationParser {
 
   static async getKeywords(): Promise<string[]> {
     const stored = await SecureStore.getItemAsync(this.KEYWORDS_KEY);
-    return stored ? JSON.parse(stored) : ['HDFC', 'SBI', 'ICICI', 'Axis', 'Kotak', 'BOI', 'PNB', 'Canara', 'Union', 'BOB', 'IDBI', 'Indian', 'Central', 'UCO', 'Syndicate', 'Allahabad', 'Andhra', 'Corporation', 'Dena', 'Indian Overseas', 'Oriental', 'Punjab', 'Vijaya', 'United', 'State Bank', 'Bank of India', 'Bank of Baroda', 'Federal', 'Jupiter', 'Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay'];
+    return stored ? JSON.parse(stored) : ['Jupiter', 'HDFC', 'BOI', 'SBI', 'UPI', 'Credited', 'Debited', 'Salary'];
   }
 
   static async saveKeywords(keywords: string[]): Promise<void> {

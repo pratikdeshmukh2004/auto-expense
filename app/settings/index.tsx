@@ -27,6 +27,7 @@ export default function SettingsIndex() {
 
   useEffect(() => {
     loadBiometricSetting();
+    loadAutoParsingSettings();
     loadCounts();
     loadUserInfo();
   }, []);
@@ -61,6 +62,16 @@ export default function SettingsIndex() {
   const loadBiometricSetting = async () => {
     const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
     setFaceIdLock(biometricEnabled === 'true');
+  };
+
+  const loadAutoParsingSettings = async () => {
+    const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+    setAutoParsing(autoParsingEnabled !== 'false');
+  };
+
+  const handleAutoParsingToggle = async (value: boolean) => {
+    setAutoParsing(value);
+    await SecureStore.setItemAsync('auto_parsing_enabled', value.toString());
   };
 
   const handleBiometricToggle = async (value: boolean) => {
@@ -319,7 +330,7 @@ export default function SettingsIndex() {
               </View>
               <Switch
                 value={autoParsing}
-                onValueChange={isGuest ? undefined : setAutoParsing}
+                onValueChange={isGuest ? undefined : handleAutoParsingToggle}
                 trackColor={{ false: '#d1d5db', true: isGuest ? '#d1d5db' : '#ea2a33' }}
                 thumbColor="white"
                 disabled={isGuest}
@@ -342,13 +353,16 @@ export default function SettingsIndex() {
                   width: 40,
                   height: 40,
                   borderRadius: 12,
-                  backgroundColor: isGuest ? 'rgba(156, 163, 175, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                  backgroundColor: isGuest ? 'rgba(156, 163, 175, 0.1)' : 'rgba(139, 92, 246, 0.1)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Ionicons name="business" size={20} color={isGuest ? '#9ca3af' : '#3b82f6'} />
+                  <Ionicons name="sparkles" size={20} color={isGuest ? '#9ca3af' : '#8b5cf6'} />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: isGuest ? '#9ca3af' : '#1f2937' }}>Smart Parsing</Text>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: isGuest ? '#9ca3af' : '#1f2937' }}>Smart Parsing</Text>
+                  <Text style={{ fontSize: 12, color: isGuest ? '#d1d5db' : '#6b7280' }}>Configure keywords & senders</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color={isGuest ? '#d1d5db' : '#9ca3af'} />
             </TouchableOpacity>
@@ -494,7 +508,7 @@ export default function SettingsIndex() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Daily Summary</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Receive a digest at 8:00 PM</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Daily spending digest at 8:00 PM</Text>
                 </View>
               </View>
               <Switch
@@ -512,7 +526,7 @@ export default function SettingsIndex() {
               justifyContent: 'space-between',
               padding: 16,
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
                 <View style={{
                   width: 40,
                   height: 40,
@@ -523,7 +537,10 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name="warning" size={20} color="#ef4444" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Overspending Alerts</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Overspending Alerts</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Get notified when over budget</Text>
+                </View>
               </View>
               <Switch
                 value={overspendingAlerts}
@@ -566,7 +583,7 @@ export default function SettingsIndex() {
               borderBottomWidth: 1,
               borderBottomColor: '#f3f4f6',
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
                 <View style={{
                   width: 40,
                   height: 40,
@@ -577,9 +594,12 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name={Platform.OS === 'ios' ? 'scan' : 'finger-print'} size={20} color="#22c55e" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {Platform.OS === 'ios' ? 'Face ID Lock' : 'Biometric Lock'}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                    {Platform.OS === 'ios' ? 'Face ID Lock' : 'Biometric Lock'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Secure app with biometrics</Text>
+                </View>
               </View>
               <Switch
                 value={faceIdLock}
@@ -610,7 +630,10 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name="shield-checkmark" size={20} color="#6b7280" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Privacy & Permissions</Text>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Privacy & Permissions</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>View app permissions</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -662,7 +685,10 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name="help-circle" size={20} color="#14b8a6" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Help Center</Text>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Help Center</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>FAQs and support</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -688,7 +714,10 @@ export default function SettingsIndex() {
                 }}>
                   <Ionicons name="information-circle" size={20} color="#6366f1" />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>About Us</Text>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>About Us</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>App info and developer</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -763,7 +792,7 @@ export default function SettingsIndex() {
         onClose={() => setShowPrivacySheet(false)}
         title="Privacy & Permissions"
       >
-        <View style={{ paddingBottom: 40 }}>
+        <View>
           {/* Privacy Hero */}
           <View style={{ alignItems: 'center', marginBottom: 32, padding: 20, backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: 16 }}>
             <View style={{
@@ -889,7 +918,7 @@ export default function SettingsIndex() {
         onClose={() => setShowHelpSheet(false)}
         title="Help Center"
       >
-        <View style={{ paddingBottom: 40 }}>
+        <View>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Frequently Asked Questions</Text>
           
           <View style={{ gap: 20 }}>
@@ -926,7 +955,7 @@ export default function SettingsIndex() {
         onClose={() => setShowAboutSheet(false)}
         title="About Us"
       >
-        <View style={{ paddingBottom: 40 }}>
+        <View>
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
             <Image
               source={require('../../assets/images/logo.png')}
