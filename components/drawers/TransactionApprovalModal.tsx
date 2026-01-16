@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, PanResponder, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Modal, PanResponder, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Category, CategoryService } from '../../services/CategoryService';
+import { PaymentMethod, PaymentMethodService } from '../../services/PaymentMethodService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
-import TransactionModal from './TransactionModal';
+import DateTimePickerModal from './DateTimePickerModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -14,22 +16,35 @@ interface TransactionApprovalModalProps {
 
 export default function TransactionApprovalModal({ visible, onClose }: TransactionApprovalModalProps) {
   const [currentTransaction, setCurrentTransaction] = useState(0);
+  const [amount, setAmount] = useState('');
   const [merchantName, setMerchantName] = useState('');
   const [note, setNote] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   
   const pan = useRef(new Animated.ValueXY()).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
   const currentTx = pendingTransactions[currentTransaction];
 
-  // Load pending transactions when modal opens
   useEffect(() => {
     if (visible) {
       loadPendingTransactions();
+      loadCategoriesAndPaymentMethods();
     }
   }, [visible]);
+
+  const loadCategoriesAndPaymentMethods = async () => {
+    const cats = await CategoryService.getCategories();
+    const methods = await PaymentMethodService.getPaymentMethods();
+    setCategories(cats);
+    setPaymentMethods(methods);
+  };
 
   const loadPendingTransactions = async () => {
     const transactions = await TransactionService.getTransactions();
@@ -37,8 +52,12 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
     setPendingTransactions(pending);
     setCurrentTransaction(0);
     if (pending.length > 0) {
+      setAmount(pending[0].amount);
       setMerchantName(pending[0].merchant);
       setNote(pending[0].notes || '');
+      setSelectedCategory(pending[0].category);
+      setSelectedPaymentMethod(pending[0].paymentMethod || '');
+      setSelectedDate(new Date(pending[0].date));
     }
     resetCard();
   };
@@ -46,16 +65,25 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
   const handleApprove = async () => {
     if (currentTx) {
       await TransactionService.updateTransaction(currentTx.id, {
+        amount,
         merchant: merchantName,
         notes: note,
+        category: selectedCategory,
+        paymentMethod: selectedPaymentMethod,
+        date: selectedDate.toISOString(),
         status: 'completed'
       });
     }
     animateCardExit('right', () => {
       if (currentTransaction < pendingTransactions.length - 1) {
+        const nextTx = pendingTransactions[currentTransaction + 1];
         setCurrentTransaction(currentTransaction + 1);
-        setMerchantName(pendingTransactions[currentTransaction + 1].merchant);
-        setNote(pendingTransactions[currentTransaction + 1].notes || '');
+        setAmount(nextTx.amount);
+        setMerchantName(nextTx.merchant);
+        setNote(nextTx.notes || '');
+        setSelectedCategory(nextTx.category);
+        setSelectedPaymentMethod(nextTx.paymentMethod || '');
+        setSelectedDate(new Date(nextTx.date));
         resetCard();
       } else {
         onClose();
@@ -71,9 +99,14 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
     }
     animateCardExit('left', () => {
       if (currentTransaction < pendingTransactions.length - 1) {
+        const nextTx = pendingTransactions[currentTransaction + 1];
         setCurrentTransaction(currentTransaction + 1);
-        setMerchantName(pendingTransactions[currentTransaction + 1].merchant);
-        setNote(pendingTransactions[currentTransaction + 1].notes || '');
+        setAmount(nextTx.amount);
+        setMerchantName(nextTx.merchant);
+        setNote(nextTx.notes || '');
+        setSelectedCategory(nextTx.category);
+        setSelectedPaymentMethod(nextTx.paymentMethod || '');
+        setSelectedDate(new Date(nextTx.date));
         resetCard();
       } else {
         onClose();
@@ -208,17 +241,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
               {pendingTransactions.length - currentTransaction} Left
             </Text>
             
-            <TouchableOpacity
-              onPress={() => setShowTransactionModal(true)}
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="create-outline" size={24} color="white" />
-            </TouchableOpacity>
+            <View style={{ width: 40 }} />
           </View>
 
           {(pendingTransactions.length - currentTransaction) > 1 && (
@@ -271,7 +294,6 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                   shadowOpacity: 0.2,
                   shadowRadius: 16,
                   elevation: 8,
-                  overflow: 'hidden',
                 },
                 {
                   transform: [{ translateX: pan.x }],
@@ -280,19 +302,26 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
               ]}
               {...panResponder.panHandlers}
             >
+              <ScrollView showsVerticalScrollIndicator={false}>
               {/* Amount */}
               <View style={{
                 alignItems: 'center',
                 paddingVertical: 24,
                 paddingTop: 32,
               }}>
-                <Text style={{ fontSize: 48, fontWeight: '800', color: '#0d121b' }}>
-                  <Text style={{ fontSize: 24, color: '#9ca3af' }}>₹</Text>
-                  {parseFloat(currentTx.amount).toFixed(2)}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 24, color: '#9ca3af', fontWeight: '800' }}>₹</Text>
+                  <TextInput
+                    style={{ fontSize: 48, fontWeight: '800', color: '#0d121b', minWidth: 100, textAlign: 'center' }}
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                  />
+                </View>
               </View>
 
-              {/* Description */}
+              {/* Merchant */}
               <View style={{ paddingHorizontal: 32}}>
                 <Text style={{
                   fontSize: 12,
@@ -302,37 +331,58 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                   letterSpacing: 1,
                   marginBottom: 8,
                   marginLeft: 4,
-                }}>Description</Text>
-                <View style={{ position: 'relative' }}>
-                  <TextInput
-                    style={{
-                      backgroundColor: '#f8fafc',
-                      borderWidth: 1,
-                      borderColor: '#e2e8f0',
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 16,
-                      paddingRight: 50,
-                      fontSize: 16,
-                      fontWeight: '600',
-                      color: '#0d121b',
-                    }}
-                    value={merchantName}
-                    onChangeText={setMerchantName}
-                    placeholder="Enter description"
-                    placeholderTextColor="#9ca3af"
-                  />
-                  <TouchableOpacity
-                    style={{
-                      position: 'absolute',
-                      right: 16,
-                      top: 16,
-                      padding: 4,
-                    }}
-                  >
-                    <Ionicons name="calendar-outline" size={20} color="#9ca3af" />
-                  </TouchableOpacity>
-                </View>
+                }}>Merchant</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 16,
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: '#0d121b',
+                  }}
+                  value={merchantName}
+                  onChangeText={setMerchantName}
+                  placeholder="Enter description"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              {/* Date */}
+              <View style={{ paddingHorizontal: 32, marginTop: 16 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                  color: '#9ca3af',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  marginBottom: 8,
+                  marginLeft: 4,
+                }}>Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#0d121b' }}>
+                    {selectedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {' • '}
+                    {selectedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Form Fields */}
@@ -348,28 +398,35 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                     marginBottom: 8,
                     marginLeft: 4,
                   }}>Category</Text>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: '#f8fafc',
-                    borderWidth: 1,
-                    borderColor: '#e2e8f0',
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                  }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{
-                        padding: 6,
-                        backgroundColor: '#fed7aa',
-                        borderRadius: 8,
-                      }}>
-                        <Ionicons name="pricetag" size={18} color="#ea580c" />
-                      </View>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>{currentTx.category}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}>
+                      {categories.map((cat) => {
+                        const isSelected = selectedCategory === cat.name;
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            onPress={() => setSelectedCategory(cat.name)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: isSelected ? cat.color : '#f8fafc',
+                              borderWidth: 1,
+                              borderColor: isSelected ? cat.color : '#e2e8f0',
+                            }}
+                          >
+                            <Ionicons name={cat.icon as any} size={16} color={isSelected ? 'white' : cat.color} />
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isSelected ? 'white' : '#374151' }}>
+                              {cat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  </View>
+                  </ScrollView>
                 </View>
 
                 {/* Payment Method */}
@@ -383,28 +440,35 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                     marginBottom: 8,
                     marginLeft: 4,
                   }}>Payment Method</Text>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: '#f8fafc',
-                    borderWidth: 1,
-                    borderColor: '#e2e8f0',
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                  }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{
-                        padding: 6,
-                        backgroundColor: '#dbeafe',
-                        borderRadius: 8,
-                      }}>
-                        <Ionicons name="card" size={18} color="#2563eb" />
-                      </View>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>{currentTx.paymentMethod || 'Unknown'}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 4 }}>
+                      {paymentMethods.map((method) => {
+                        const isSelected = selectedPaymentMethod === method.name;
+                        return (
+                          <TouchableOpacity
+                            key={method.id}
+                            onPress={() => setSelectedPaymentMethod(method.name)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 20,
+                              backgroundColor: isSelected ? method.color : '#f8fafc',
+                              borderWidth: 1,
+                              borderColor: isSelected ? method.color : '#e2e8f0',
+                            }}
+                          >
+                            <Ionicons name={method.icon as any} size={16} color={isSelected ? 'white' : method.color} />
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isSelected ? 'white' : '#374151' }}>
+                              {method.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  </View>
+                  </ScrollView>
                 </View>
 
                 {/* Note */}
@@ -418,35 +482,28 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                     marginBottom: 8,
                     marginLeft: 4,
                   }}>Notes</Text>
-                  <View style={{ position: 'relative' }}>
-                    <TextInput
-                      style={{
-                        backgroundColor: '#f8fafc',
-                        borderWidth: 1,
-                        borderColor: '#e2e8f0',
-                        borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 16,
-                        fontSize: 14,
-                        color: '#374151',
-                        height: 80,
-                        textAlignVertical: 'top',
-                      }}
-                      placeholder="Add a note..."
-                      placeholderTextColor="#9ca3af"
-                      value={note}
-                      onChangeText={setNote}
-                      multiline
-                    />
-                    <Ionicons
-                      name="create-outline"
-                      size={18}
-                      color="#9ca3af"
-                      style={{ position: 'absolute', right: 16, top: 16 }}
-                    />
-                  </View>
+                  <TextInput
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      borderWidth: 1,
+                      borderColor: '#e2e8f0',
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 16,
+                      fontSize: 14,
+                      color: '#374151',
+                      height: 80,
+                      textAlignVertical: 'top',
+                    }}
+                    placeholder="Add a note..."
+                    placeholderTextColor="#9ca3af"
+                    value={note}
+                    onChangeText={setNote}
+                    multiline
+                  />
                 </View>
               </View>
+              </ScrollView>
             </Animated.View>
 
             {/* Action Buttons */}
@@ -478,7 +535,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                 onPress={handleReject}
               >
                 <Ionicons name="close" size={20} color="#dc2626" />
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#dc2626' }}>Wrong</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#dc2626' }}>Reject</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -500,7 +557,7 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
                 onPress={handleApprove}
               >
                 <Ionicons name="checkmark" size={20} color="white" />
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>Correct</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'white' }}>Approve</Text>
               </TouchableOpacity>
             </View>
 
@@ -517,20 +574,15 @@ export default function TransactionApprovalModal({ visible, onClose }: Transacti
         </SafeAreaView>
       </View>
       
-      {currentTx && (
-        <TransactionModal
-          visible={showTransactionModal}
-          onClose={() => setShowTransactionModal(false)}
-          transaction={currentTx}
-          onTransactionUpdated={async () => {
-            await TransactionService.updateTransaction(currentTx.id, {
-              status: 'completed'
-            });
-            await loadPendingTransactions();
-            setShowTransactionModal(false);
-          }}
-        />
-      )}
+      <DateTimePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelectDateTime={(date) => {
+          setSelectedDate(date);
+          setShowDatePicker(false);
+        }}
+        initialDate={selectedDate}
+      />
     </Modal>
   );
 }

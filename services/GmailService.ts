@@ -60,8 +60,19 @@ export class GmailService {
 
       let keywords = await NotificationParser.getKeywords();
       
-      // Add default keywords if not already present
-      const defaultKeywords = ['Jupiter', 'HDFC', 'BOI', 'SBI', 'UPI', 'Credited', 'Debited', 'Salary'];
+      // Add comprehensive default keywords if not already present
+      const defaultKeywords = [
+        // Banks
+        'Jupiter', 'HDFC', 'ICICI', 'SBI', 'Axis', 'Kotak', 'IDFC', 'Yes Bank', 'IndusInd',
+        'BOI', 'Bank of India', 'PNB', 'Canara', 'Union Bank', 'BOB', 'Federal',
+        // Payment Apps
+        'Paytm', 'PhonePe', 'Google Pay', 'GPay', 'Amazon Pay', 'Mobikwik', 'Freecharge',
+        // Transaction Keywords
+        'UPI', 'NEFT', 'IMPS', 'RTGS', 'Credited', 'Debited', 'Paid', 'Received',
+        'Transaction', 'Payment', 'Transfer', 'Salary', 'Refund', 'Cashback',
+        // Card Networks
+        'Visa', 'Mastercard', 'RuPay', 'Amex', 'Diners'
+      ];
       const newKeywords = defaultKeywords.filter(k => !keywords.includes(k));
       if (newKeywords.length > 0) {
         keywords = [...keywords, ...newKeywords];
@@ -146,6 +157,7 @@ export class GmailService {
                   status: 'pending',
                   rawMessage: parsed.message,
                   notes: 'Email Automated',
+                  sender: parsed.sender,
                 });
               } else {
                 transactions.push(parsed);
@@ -197,64 +209,74 @@ export class GmailService {
       }
       
       const subject = subjectHeader?.value || '';
+      const combinedText = `${subject} ${fullMessage}`;
       
-      // Check if it's a UPI transaction
-      const isUpiTransaction = subject.toLowerCase().includes('you have done a upi txn') || 
-                               subject.toLowerCase().includes('upi payment was successful') ||
-                               fullMessage.toLowerCase().includes('upi transaction') ||
-                               fullMessage.toLowerCase().includes('your upi payment');
+      // Check if it's a transaction
+      const isTransaction = /\b(debited|credited|paid|received|spent|transaction|payment|upi|transfer|purchase)\b/i.test(combinedText);
+      if (!isTransaction) return null;
       
       let merchant = 'Unknown';
       let amount = '0.00';
-      let paymentMethod = 'UPI';
+      let paymentMethod = 'Unknown';
       
-      if (isUpiTransaction) {
-        // Extract amount - handle both ₹230 and Rs. 230 formats
-        const amountMatch = fullMessage.match(/(?:You paid|Rs\.?|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i);
-        amount = amountMatch ? amountMatch[1].replace(/,/g, '') : '0.00';
-        
-        // Extract merchant name - look for "Paid to" section
-        const paidToMatch = fullMessage.match(/Paid to[\s\n]+([A-Z][A-Z\s&]+?)(?:[\s\n]+[a-z0-9@]|$)/i);
-        if (paidToMatch) {
-          merchant = paidToMatch[1].trim();
-        } else {
-          // Fallback: Extract merchant name (after UPI ID)
-          const upiMerchantMatch = fullMessage.match(/to\s+[A-Z0-9]+@[a-z]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
-          if (upiMerchantMatch) {
-            merchant = upiMerchantMatch[1].trim();
+      // Extract amount - multiple patterns
+      const amountPatterns = [
+        /(?:rs\.?|inr|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
+        /(?:amount|paid|debited|credited|spent)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
+        /(\d+(?:,\d+)*(?:\.\d{2})?)\s*(?:rs\.?|inr|₹)/i,
+      ];
+      
+      for (const pattern of amountPatterns) {
+        const match = combinedText.match(pattern);
+        if (match) {
+          amount = match[1].replace(/,/g, '');
+          break;
+        }
+      }
+      
+      // Extract merchant - multiple patterns
+      const merchantPatterns = [
+        /(?:paid to|sent to|transferred to|at|merchant)\s*:?\s*([A-Z][A-Za-z0-9\s&.'-]+?)(?:\s+(?:on|via|using|through|for|\.|,|\n|$))/i,
+        /(?:to|from)\s+([A-Z][A-Za-z0-9\s&.'-]{3,30})(?:\s+(?:on|via|using|for|\.|,|\n|$))/i,
+        /(?:merchant|vendor|store)\s*:?\s*([A-Z][A-Za-z0-9\s&.'-]+)/i,
+      ];
+      
+      for (const pattern of merchantPatterns) {
+        const match = combinedText.match(pattern);
+        if (match) {
+          merchant = match[1].trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^A-Za-z0-9\s&.'-]/g, '')
+            .substring(0, 30);
+          if (merchant.length >= 3) break;
+        }
+      }
+      
+      // If still unknown, try to extract from sender
+      if (merchant === 'Unknown' || merchant.length < 3) {
+        merchant = this.extractSenderName(fromHeader?.value || '');
+      }
+      
+      // Extract payment method
+      const cardPatterns = [
+        /(visa|mastercard|rupay|amex|diners)\s*(?:credit|debit)?\s*card\s*(?:ending|xx)?\s*(\d{4})/i,
+        /card\s*(?:ending|xx)\s*(\d{4})/i,
+        /(upi|paytm|phonepe|gpay|google pay|amazon pay)/i,
+      ];
+      
+      for (const pattern of cardPatterns) {
+        const match = combinedText.match(pattern);
+        if (match) {
+          if (match[2]) {
+            paymentMethod = `${match[1]} Card ending ${match[2]}`;
           } else {
-            const nameMatch = fullMessage.match(/to\s+[^\s]+\s+([A-Z][A-Z\s]+?)(?:\s+on|\.|$)/i);
-            if (nameMatch) {
-              merchant = nameMatch[1].trim();
-            }
+            paymentMethod = match[1];
           }
-        }
-        
-        // Extract payment method
-        const cardMatch = fullMessage.match(/(RuPay|Visa|Mastercard)\s+(?:Credit|Debit)\s+Card\s+(?:XX)?(\d{4})/i);
-        if (cardMatch) {
-          paymentMethod = `${cardMatch[1]} Card ending ${cardMatch[2]}`;
-        }
-      } else {
-        const amountMatch = fullMessage.match(/(?:Rs\.?|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i);
-        amount = amountMatch ? amountMatch[1].replace(/,/g, '') : '0.00';
-        
-        const toMatch = fullMessage.match(/to\s+([A-Z][A-Za-z\s]+?)(?:\s+on|\.|$)/i);
-        if (toMatch) {
-          merchant = toMatch[1].trim();
-        } else {
-          merchant = this.extractSenderName(fromHeader?.value || '');
-        }
-        
-        const cardMatch = fullMessage.match(/(RuPay|Visa|Mastercard|Credit|Debit)\s+(?:Credit|Debit)?\s*Card\s+(?:XX)?(\d{4})/i);
-        if (cardMatch) {
-          paymentMethod = `${cardMatch[1]} Card ending ${cardMatch[2]}`;
-        } else {
-          paymentMethod = 'Unknown';
+          break;
         }
       }
 
-      const category = this.categorizeTransaction(merchant, fullMessage);
+      const category = this.categorizeTransaction(merchant, combinedText);
       const emailDate = new Date(dateHeader?.value || Date.now());
       const timeAgo = this.getTimeAgo(emailDate);
 
@@ -297,36 +319,45 @@ export class GmailService {
     const lowerContent = content.toLowerCase();
 
     // Food & Dining
-    if (lowerMerchant.includes('restaurant') || lowerMerchant.includes('cafe') || lowerMerchant.includes('sweets') ||
-        lowerMerchant.includes('food') || lowerMerchant.includes('kitchen') || lowerMerchant.includes('dhaba') ||
-        lowerContent.includes('food') || lowerContent.includes('sweet') || lowerContent.includes('dinner') ||
-        lowerContent.includes('lunch') || lowerContent.includes('breakfast') || lowerContent.includes('meal') ||
-        lowerMerchant.includes('swiggy') || lowerMerchant.includes('zomato') || lowerContent.includes('food delivery')) {
+    if (/\b(restaurant|cafe|sweets|food|kitchen|dhaba|pizza|burger|biryani|swiggy|zomato|domino|mcdonald|kfc|subway)\b/i.test(lowerMerchant) ||
+        /\b(food|sweet|dinner|lunch|breakfast|meal|dining|restaurant|cafe)\b/i.test(lowerContent)) {
       return 'Food & Dining';
     }
     
     // Shopping
-    if (lowerMerchant.includes('amazon') || lowerMerchant.includes('flipkart') || lowerContent.includes('shopping') ||
-        lowerMerchant.includes('store') || lowerMerchant.includes('mart') || lowerMerchant.includes('mall')) {
+    if (/\b(amazon|flipkart|myntra|ajio|store|mart|mall|shop|retail|fashion|clothing|electronics)\b/i.test(lowerMerchant) ||
+        /\b(shopping|purchase|bought|ordered)\b/i.test(lowerContent)) {
       return 'Shopping';
     }
     
     // Transport
-    if (lowerMerchant.includes('uber') || lowerMerchant.includes('ola') || lowerContent.includes('ride') ||
-        lowerMerchant.includes('taxi') || lowerMerchant.includes('cab') || lowerContent.includes('transport')) {
+    if (/\b(uber|ola|rapido|taxi|cab|metro|bus|train|petrol|diesel|fuel|parking)\b/i.test(lowerMerchant) ||
+        /\b(ride|transport|travel|commute|fuel)\b/i.test(lowerContent)) {
       return 'Transport';
     }
     
     // Entertainment
-    if (lowerMerchant.includes('netflix') || lowerMerchant.includes('spotify') || lowerContent.includes('subscription') ||
-        lowerMerchant.includes('movie') || lowerMerchant.includes('cinema') || lowerContent.includes('entertainment')) {
+    if (/\b(netflix|prime|hotstar|spotify|youtube|movie|cinema|pvr|inox|bookmyshow|game)\b/i.test(lowerMerchant) ||
+        /\b(subscription|entertainment|movie|cinema|streaming|music)\b/i.test(lowerContent)) {
       return 'Entertainment';
     }
     
     // Groceries
-    if (lowerContent.includes('grocery') || lowerContent.includes('supermarket') || lowerMerchant.includes('grocery') ||
-        lowerMerchant.includes('vegetables') || lowerMerchant.includes('fruits')) {
+    if (/\b(grocery|supermarket|blinkit|zepto|dunzo|bigbasket|dmart|reliance|fresh|vegetable|fruit)\b/i.test(lowerMerchant) ||
+        /\b(grocery|groceries|vegetables|fruits|provisions)\b/i.test(lowerContent)) {
       return 'Groceries';
+    }
+    
+    // Bills & Utilities
+    if (/\b(electric|electricity|water|gas|internet|broadband|mobile|recharge|bill|utility)\b/i.test(lowerMerchant) ||
+        /\b(bill payment|utility|recharge|electricity|water|gas)\b/i.test(lowerContent)) {
+      return 'Bills & Utilities';
+    }
+    
+    // Healthcare
+    if (/\b(hospital|clinic|doctor|pharmacy|medicine|medical|health|apollo|fortis|max)\b/i.test(lowerMerchant) ||
+        /\b(medical|medicine|doctor|hospital|health|pharmacy)\b/i.test(lowerContent)) {
+      return 'Healthcare';
     }
     
     return 'Others';

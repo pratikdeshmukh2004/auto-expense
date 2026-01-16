@@ -35,12 +35,12 @@ export class NotificationParser {
     return stored ? JSON.parse(stored) : [];
   }
 
-  static async addApprovedSender(sender: string, category: string): Promise<void> {
+  static async addApprovedSender(sender: string, paymentMethod: string): Promise<void> {
     const stored = await SecureStore.getItemAsync(this.APPROVED_SENDERS_KEY);
     const senders = stored ? JSON.parse(stored) : [];
     const existing = senders.find((s: any) => s.sender === sender);
     if (!existing) {
-      senders.push({ sender, category });
+      senders.push({ sender, paymentMethod });
       await SecureStore.setItemAsync(this.APPROVED_SENDERS_KEY, JSON.stringify(senders));
     }
   }

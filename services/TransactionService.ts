@@ -12,6 +12,7 @@ export interface Transaction {
   status: 'completed' | 'pending' | 'rejected';
   rawMessage?: string;
   notes?: string;
+  sender?: string;
 }
 
 export class TransactionService {
@@ -169,5 +170,19 @@ export class TransactionService {
     return transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  }
+
+  static async deleteTransactionsBySender(sender: string): Promise<void> {
+    try {
+      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
+      if (!stored) return;
+      
+      const allTransactions = JSON.parse(stored);
+      const filtered = allTransactions.filter((t: any) => t.sender !== sender);
+      await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error deleting transactions by sender:', error);
+      throw error;
+    }
   }
 }

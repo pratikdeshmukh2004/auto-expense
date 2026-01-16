@@ -36,17 +36,20 @@ export default function SmartParsing() {
   const [editingSenderCategory, setEditingSenderCategory] = useState<string | null>(null);
   const [editCategoryValue, setEditCategoryValue] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [rejectedTransactions, setRejectedTransactions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'configure' | 'activity'>('configure');
   const [activitySubTab, setActivitySubTab] = useState<'pending' | 'rejected'>('pending');
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [lastSyncTime, setLastSyncTime] = useState<string>('Never');
+  const [dateRange, setDateRange] = useState<'thisMonth' | 'lastMonth' | 'last3Months' | 'last6Months' | 'last9Months' | 'thisYear' | 'lastYear'>('thisMonth');
 
   useEffect(() => {
     loadKeywords();
     loadUserEmail();
     loadApprovedSenders();
     loadCategories();
+    loadPaymentMethods();
     loadRejectedTransactions();
     loadLastSyncTime();
   }, []);
@@ -61,7 +64,7 @@ export default function SmartParsing() {
     if (activeTab === 'activity') {
       checkAutoParsingAndLoad();
     }
-  }, [activeTab]);
+  }, [activeTab, dateRange]);
 
   const checkAutoParsingAndLoad = async () => {
     const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
@@ -140,6 +143,11 @@ export default function SmartParsing() {
     const cats = await CategoryService.getCategories();
     setCategories(cats);
   };
+  
+  const loadPaymentMethods = async () => {
+    const methods = await PaymentMethodService.getPaymentMethods();
+    setPaymentMethods(methods);
+  };
 
   const loadRejectedTransactions = async () => {
     const rejected = await TransactionService.getRejectedTransactions();
@@ -160,16 +168,42 @@ export default function SmartParsing() {
   };
 
   const removeSender = async (sender: string) => {
-    const senders = await NotificationParser.getApprovedSenders();
-    const filtered = senders.filter((s: any) => s.sender !== sender);
-    await NotificationParser.saveApprovedSenders(filtered);
-    await loadApprovedSenders();
+    Alert.alert(
+      'Delete Approved Sender',
+      'Do you want to delete transactions from this sender as well?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Keep Transactions',
+          onPress: async () => {
+            const senders = await NotificationParser.getApprovedSenders();
+            const filtered = senders.filter((s: any) => s.sender !== sender);
+            await NotificationParser.saveApprovedSenders(filtered);
+            await loadApprovedSenders();
+          }
+        },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            await TransactionService.deleteTransactionsBySender(sender);
+            const senders = await NotificationParser.getApprovedSenders();
+            const filtered = senders.filter((s: any) => s.sender !== sender);
+            await NotificationParser.saveApprovedSenders(filtered);
+            await loadApprovedSenders();
+          }
+        }
+      ]
+    );
   };
 
-  const updateSenderCategory = async (sender: string, newCategory: string) => {
+  const updateSenderCategory = async (sender: string, newPaymentMethod: string) => {
     const senders = await NotificationParser.getApprovedSenders();
     const updated = senders.map((s: any) => 
-      s.sender === sender ? { ...s, category: newCategory } : s
+      s.sender === sender ? { ...s, paymentMethod: newPaymentMethod } : s
     );
     await NotificationParser.saveApprovedSenders(updated);
     await loadApprovedSenders();
@@ -236,10 +270,11 @@ export default function SmartParsing() {
       status: "pending" as const,
       rawMessage: message.message,
       notes: "Email Automated",
+      sender: message.sender,
     };
 
     await TransactionService.addTransaction(transaction);
-    await NotificationParser.addApprovedSender(message.sender, transaction.category);
+    await NotificationParser.addApprovedSender(message.sender, paymentMethod);
     await loadApprovedSenders();
     
     setRecentMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -262,6 +297,7 @@ export default function SmartParsing() {
         type: 'expense',
         status: 'rejected',
         rawMessage: message.message,
+        sender: message.sender,
       });
       await loadRejectedTransactions();
       setActivitySubTab('rejected');
@@ -312,12 +348,19 @@ export default function SmartParsing() {
       const transactions = await TransactionService.getTransactions();
       const latestTransaction = transactions[0]; // Most recent transaction
       
-      if (latestTransaction && latestTransaction.category) {
-        const categories = await CategoryService.getCategories();
-        const savedCategory = categories.find(c => c.name === latestTransaction.category);
+      // Update the transaction with sender if it was just added
+      if (latestTransaction && !latestTransaction.sender) {
+        await TransactionService.updateTransaction(latestTransaction.id, {
+          sender: selectedMessage.sender
+        });
+      }
+      
+      if (latestTransaction && latestTransaction.paymentMethod) {
+        const methods = await PaymentMethodService.getPaymentMethods();
+        const savedMethod = methods.find(m => m.name === latestTransaction.paymentMethod);
         
-        if (savedCategory) {
-          await NotificationParser.addApprovedSender(selectedMessage.sender, savedCategory.name);
+        if (savedMethod) {
+          await NotificationParser.addApprovedSender(selectedMessage.sender, savedMethod.name);
           await loadApprovedSenders();
         }
       }
@@ -391,18 +434,6 @@ export default function SmartParsing() {
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={loadingMessages}
-            onRefresh={() => {
-              if (activeTab === 'activity') {
-                loadTransactionEmails();
-              }
-              loadRejectedTransactions();
-            }}
-            tintColor="#EA2831"
-          />
-        }
       >
         {activeTab === 'configure' ? (
           <>
@@ -416,31 +447,28 @@ export default function SmartParsing() {
 
             {/* SMS Messages Card */}
             <View style={{
-              position: 'relative',
-              overflow: 'hidden',
+              backgroundColor: 'rgba(234, 40, 49, 0.05)',
+              borderWidth: 1,
+              borderColor: 'rgba(234, 40, 49, 0.2)',
               borderRadius: 16,
+              padding: 16,
               marginBottom: 12,
               marginHorizontal: 24,
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <View style={{
-                backgroundColor: 'rgba(234, 40, 49, 0.05)',
-                borderWidth: 1,
-                borderColor: 'rgba(234, 40, 49, 0.2)',
-                padding: 16,
-              }}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardHeaderLeft}>
-                    <View style={styles.emailIconContainer}>
-                      <Ionicons name="chatbubble" size={20} color="#EA2831" />
-                    </View>
-                    <View>
-                      <Text style={styles.cardTitle}>SMS Messages</Text>
-                      <Text style={styles.cardSubtitle}>Automated SMS transaction parsing</Text>
-                    </View>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardHeaderLeft}>
+                  <View style={styles.emailIconContainer}>
+                    <Ionicons name="chatbubble" size={20} color="#EA2831" />
                   </View>
-                  <View style={styles.comingSoonBadge}>
-                    <Text style={styles.comingSoonText}>COMING SOON</Text>
+                  <View>
+                    <Text style={styles.cardTitle}>SMS Messages</Text>
+                    <Text style={styles.cardSubtitle}>Automated SMS transaction parsing</Text>
                   </View>
+                </View>
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>COMING SOON</Text>
                 </View>
               </View>
               <View style={{
@@ -571,20 +599,20 @@ export default function SmartParsing() {
                             <View style={{ marginTop: 8 }}>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                                  {categories.map((cat) => (
+                                  {paymentMethods.map((method) => (
                                     <TouchableOpacity
-                                      key={cat.id}
-                                      onPress={() => updateSenderCategory(sender.sender, cat.name)}
+                                      key={method.id}
+                                      onPress={() => updateSenderCategory(sender.sender, method.name)}
                                       style={[
                                         styles.categoryChip,
-                                        editCategoryValue === cat.name && styles.categoryChipActive
+                                        editCategoryValue === method.name && styles.categoryChipActive
                                       ]}
                                     >
-                                      <Ionicons name={cat.icon} size={12} color={editCategoryValue === cat.name ? 'white' : '#64748b'} />
+                                      <Ionicons name={method.icon} size={12} color={editCategoryValue === method.name ? 'white' : '#64748b'} />
                                       <Text style={[
                                         styles.categoryChipText,
-                                        editCategoryValue === cat.name && styles.categoryChipTextActive
-                                      ]}>{cat.name}</Text>
+                                        editCategoryValue === method.name && styles.categoryChipTextActive
+                                      ]}>{method.name}</Text>
                                     </TouchableOpacity>
                                   ))}
                                   <TouchableOpacity
@@ -602,12 +630,12 @@ export default function SmartParsing() {
                           ) : (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                               <View style={styles.categoryBadge}>
-                                <Text style={styles.categoryBadgeText}>{sender.category}</Text>
+                                <Text style={styles.categoryBadgeText}>{sender.paymentMethod || 'Not Set'}</Text>
                               </View>
                               <TouchableOpacity
                                 onPress={() => {
                                   setEditingSenderCategory(sender.sender);
-                                  setEditCategoryValue(sender.category);
+                                  setEditCategoryValue(sender.paymentMethod || '');
                                 }}
                               >
                                 <Ionicons name="create-outline" size={14} color="#94a3b8" />
@@ -666,11 +694,114 @@ export default function SmartParsing() {
             {activitySubTab === 'pending' ? (
               <>
             {/* Activity Tab Content */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>RECENT TRANSACTIONS</Text>
-              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
-                Review and approve parsed transactions from your emails
-              </Text>
+            <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>RECENT TRANSACTIONS</Text>
+                  <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4, lineHeight: 16 }}>
+                    Review and approve parsed transactions from your emails
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={loadTransactionEmails}
+                  disabled={loadingMessages}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="refresh" size={22} color={loadingMessages ? '#d1d5db' : '#EA2831'} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Date Range Selector */}
+            <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'thisMonth' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('thisMonth')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'thisMonth' && styles.dateRangeTextActive
+                    ]}>This Month</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'lastMonth' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('lastMonth')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'lastMonth' && styles.dateRangeTextActive
+                    ]}>Last Month</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'last3Months' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('last3Months')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'last3Months' && styles.dateRangeTextActive
+                    ]}>Last 3 Months</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'last6Months' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('last6Months')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'last6Months' && styles.dateRangeTextActive
+                    ]}>Last 6 Months</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'last9Months' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('last9Months')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'last9Months' && styles.dateRangeTextActive
+                    ]}>Last 9 Months</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'thisYear' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('thisYear')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'thisYear' && styles.dateRangeTextActive
+                    ]}>This Year</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeChip,
+                      dateRange === 'lastYear' && styles.dateRangeChipActive
+                    ]}
+                    onPress={() => setDateRange('lastYear')}
+                  >
+                    <Text style={[
+                      styles.dateRangeText,
+                      dateRange === 'lastYear' && styles.dateRangeTextActive
+                    ]}>Last Year</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
 
         {/* Recent Transactions */}
@@ -984,6 +1115,7 @@ export default function SmartParsing() {
             category: selectedMessage.category,
             paymentMethod: selectedMessage.paymentMethod,
             date: selectedMessage.date,
+            sender: selectedMessage.sender,
           }}
           onTransactionAdded={handleTransactionSaved}
         />
@@ -1550,6 +1682,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10b981",
+  },
+  dateRangeChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  dateRangeChipActive: {
+    backgroundColor: '#EA2831',
+    borderColor: '#EA2831',
+  },
+  dateRangeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  dateRangeTextActive: {
+    color: 'white',
   },
   subTabContainer: {
     flexDirection: "row",

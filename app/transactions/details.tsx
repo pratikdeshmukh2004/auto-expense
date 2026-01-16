@@ -244,6 +244,26 @@ export default function TransactionDetailsScreen() {
                 </View>
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#181111' }}>{transaction.paymentMethod || 'Unknown'}</Text>
               </View>
+
+              {/* Sender */}
+              {transaction.sender && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{
+                      padding: 8,
+                      backgroundColor: '#f8f6f6',
+                      borderRadius: 20,
+                    }}>
+                      <Ionicons name="mail" size={20} color="#181111" style={{ opacity: 0.7 }} />
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#886364' }}>Sender</Text>
+                  </View>
+                  <View style={{ flex: 1, alignItems: 'flex-end', paddingLeft: 12 }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }} numberOfLines={1}>{transaction.sender.split('<')[0].trim()}</Text>
+                    <Text style={{ fontSize: 11, color: '#886364', marginTop: 2 }} numberOfLines={1}>{transaction.sender.match(/<(.+)>/)?.[1] || transaction.sender}</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Divider */}

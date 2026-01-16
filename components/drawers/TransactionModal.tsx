@@ -19,6 +19,7 @@ interface TransactionModalProps {
     category: string;
     paymentMethod: string;
     date: string;
+    sender?: string;
   };
   onTransactionUpdated?: () => void;
   onTransactionAdded?: () => void;
@@ -110,7 +111,8 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
           date: selectedDateTime.toISOString(),
           type: transactionType,
           status: prefillData ? 'pending' : 'completed',
-          notes: notes || (prefillData ? 'Email Automated' : '')
+          notes: notes || (prefillData ? 'Email Automated' : ''),
+          sender: prefillData?.sender
         });
       }
       
@@ -234,20 +236,20 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
           </View>
 
           {/* Income/Expense Toggle */}
-          <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 }}>
+          <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 6 }}>
             <View style={{
               flexDirection: 'row',
-              padding: 6,
+              padding: 4,
               backgroundColor: 'rgba(156, 163, 175, 0.6)',
-              borderRadius: 12,
+              borderRadius: 10,
               position: 'relative',
             }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  paddingVertical: 10,
+                  paddingVertical: 8,
                   alignItems: 'center',
-                  borderRadius: 8,
+                  borderRadius: 7,
                   backgroundColor: transactionType === 'income' ? 'white' : 'transparent',
                   shadowColor: transactionType === 'income' ? '#000' : 'transparent',
                   shadowOffset: { width: 0, height: 1 },
@@ -258,7 +260,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 onPress={() => setTransactionType('income')}
               >
                 <Text style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 'bold',
                   color: transactionType === 'income' ? '#EA2831' : '#6b7280',
                 }}>Income</Text>
@@ -266,9 +268,9 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  paddingVertical: 10,
+                  paddingVertical: 8,
                   alignItems: 'center',
-                  borderRadius: 8,
+                  borderRadius: 7,
                   backgroundColor: transactionType === 'expense' ? 'white' : 'transparent',
                   shadowColor: transactionType === 'expense' ? '#000' : 'transparent',
                   shadowOffset: { width: 0, height: 1 },
@@ -279,7 +281,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 onPress={() => setTransactionType('expense')}
               >
                 <Text style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 'bold',
                   color: transactionType === 'expense' ? '#EA2831' : '#6b7280',
                 }}>Expense</Text>
@@ -298,8 +300,8 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              paddingTop: 16,
-              paddingBottom: 32,
+              paddingTop: 12,
+              paddingBottom: 20,
               paddingHorizontal: 24,
             }}>
               <Text style={{
@@ -308,13 +310,13 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 color: '#9ca3af',
                 textTransform: 'uppercase',
                 letterSpacing: 2,
-                marginBottom: 8,
+                marginBottom: 6,
               }}>Enter Amount</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 64, fontWeight: 'bold', color: '#181111', marginRight: 4, marginTop: 4 }}>₹</Text>
+                <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#181111', marginRight: 4, marginTop: 4 }}>₹</Text>
                 <TextInput
                   style={{
-                    fontSize: amount.length > 8 ? 32 : amount.length > 6 ? 48 : amount.length > 5 ? 60 : amount.length > 4 ? 70 : amount.length > 3 ? 70 : 88,
+                    fontSize: amount.length > 8 ? 28 : amount.length > 6 ? 36 : amount.length > 5 ? 44 : amount.length > 4 ? 52 : amount.length > 3 ? 56 : 60,
                     fontWeight: '800',
                     color: '#181111',
                     textAlign: 'center',
@@ -341,18 +343,24 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
               </View>
             </View>
 
-            <View style={{ paddingHorizontal: 24, gap: 32 }}>
+            <View style={{ paddingHorizontal: 24, gap: 20 }}>
               {/* Merchant */}
               <View>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: 'bold',
-                  color: '#6b7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 2,
-                  marginBottom: 10,
-                  marginLeft: 4,
-                }}>Merchant</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    color: '#6b7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: 2,
+                    marginLeft: 4,
+                  }}>Merchant</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280' }}>
+                    {selectedDateTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {' • '}
+                    {selectedDateTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -405,91 +413,68 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   marginBottom: 12,
                   marginLeft: 4,
                 }}>Category</Text>
-                <View style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                }}>
-                  {categories.slice(0, 7).map((category) => (
-                    <TouchableOpacity
-                      key={category.id}
-                      style={{
-                        width: '22%',
-                        alignItems: 'center',
-                        gap: 8,
-                        marginBottom: 16,
-                      }}
-                      onPress={() => setSelectedCategory(category.name)}
-                    >
-                      <View style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: selectedCategory === category.name ? '#EA2831' : 'white',
-                        borderWidth: selectedCategory === category.name ? 0 : 1,
-                        borderColor: '#f3f4f6',
-                        shadowColor: selectedCategory === category.name ? '#EA2831' : '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: selectedCategory === category.name ? 0.3 : 0.05,
-                        shadowRadius: selectedCategory === category.name ? 15 : 20,
-                        elevation: selectedCategory === category.name ? 8 : 2,
-                      }}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginHorizontal: -24 }}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
+                >
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    {categories.map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
+                          borderRadius: 20,
+                          backgroundColor: selectedCategory === category.name ? category.color : 'white',
+                          borderWidth: 1,
+                          borderColor: selectedCategory === category.name ? category.color : '#e5e7eb',
+                        }}
+                        onPress={() => setSelectedCategory(category.name)}
+                      >
                         <Ionicons 
                           name={category.icon as any} 
-                          size={24} 
-                          color={selectedCategory === category.name ? 'white' : '#6b7280'} 
+                          size={18} 
+                          color={selectedCategory === category.name ? 'white' : category.color} 
                         />
-                      </View>
+                        <Text style={{
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: selectedCategory === category.name ? 'white' : '#374151',
+                        }}>
+                          {category.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 20,
+                        backgroundColor: 'white',
+                        borderWidth: 1,
+                        borderColor: '#e5e7eb',
+                      }}
+                      onPress={() => setShowCategoryModal(true)}
+                    >
+                      <Ionicons name="add" size={18} color="#6b7280" />
                       <Text style={{
-                        fontSize: 12,
-                        fontWeight: selectedCategory === category.name ? 'bold' : '500',
-                        color: selectedCategory === category.name ? '#EA2831' : '#6b7280',
-                        textAlign: 'center',
-                        lineHeight: 14,
+                        fontSize: 14,
+                        fontWeight: '600',
+                        color: '#6b7280',
                       }}>
-                        {category.name}
+                        Add
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity 
-                    style={{
-                      width: '22%',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginBottom: 16,
-                    }}
-                    onPress={() => setShowCategoryModal(true)}
-                  >
-                    <View style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 18,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: 'white',
-                      borderWidth: 1,
-                      borderColor: '#f3f4f6',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.05,
-                      shadowRadius: 20,
-                      elevation: 2,
-                    }}>
-                      <Ionicons name="add" size={24} color="#6b7280" />
-                    </View>
-                    <Text style={{
-                      fontSize: 12,
-                      fontWeight: '500',
-                      color: '#6b7280',
-                      textAlign: 'center',
-                      lineHeight: 14,
-                    }}>
-                      More
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                </ScrollView>
               </View>
 
               {/* Payment Method */}
@@ -509,130 +494,59 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   style={{ marginHorizontal: -24 }}
                   contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
                 >
-                  <View style={{ flexDirection: 'row', gap: 16 }}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
                     {paymentMethods.map((method) => (
                       <TouchableOpacity
                         key={method.id}
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          gap: 12,
-                          backgroundColor: 'white',
-                          paddingVertical: 16,
-                          paddingHorizontal: 16,
-                          paddingRight: 24,
+                          gap: 8,
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
                           borderRadius: 20,
-                          borderWidth: selectedPayment === method.name ? 2 : 1,
-                          borderColor: selectedPayment === method.name ? '#EA2831' : 'transparent',
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.05,
-                          shadowRadius: 20,
-                          elevation: 2,
-                          minWidth: 140,
+                          backgroundColor: selectedPayment === method.name ? method.color : 'white',
+                          borderWidth: 1,
+                          borderColor: selectedPayment === method.name ? method.color : '#e5e7eb',
                         }}
                         onPress={() => setSelectedPayment(method.name)}
                       >
-                        <View style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: selectedPayment === method.name ? 'rgba(234, 40, 49, 0.1)' : '#f3f4f6',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                        <Ionicons 
+                          name={method.icon as any} 
+                          size={18} 
+                          color={selectedPayment === method.name ? 'white' : method.color} 
+                        />
+                        <Text style={{
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: selectedPayment === method.name ? 'white' : '#374151',
                         }}>
-                          <Ionicons 
-                            name={method.icon as any} 
-                            size={20} 
-                            color={selectedPayment === method.name ? '#EA2831' : '#6b7280'} 
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{
-                            fontSize: 14,
-                            fontWeight: 'bold',
-                            color: selectedPayment === method.name ? '#EA2831' : '#181111',
-                            lineHeight: 16,
-                            marginBottom: 4,
-                          }}>
-                            {method.name}
-                          </Text>
-                          <Text style={{
-                            fontSize: 10,
-                            fontWeight: '600',
-                            color: selectedPayment === method.name ? 'rgba(234, 40, 49, 0.6)' : '#9ca3af',
-                            textTransform: 'uppercase',
-                            letterSpacing: 1,
-                          }}>
-                            **** {method.id.toString().padStart(4, '0')}
-                          </Text>
-                        </View>
-                        {selectedPayment === method.name && (
-                          <View style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: 10,
-                            backgroundColor: '#EA2831',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginLeft: 8,
-                          }}>
-                            <Ionicons name="checkmark" size={14} color="white" />
-                          </View>
-                        )}
+                          {method.name}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                     <TouchableOpacity
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 12,
-                        backgroundColor: 'white',
-                        paddingVertical: 16,
-                        paddingHorizontal: 16,
-                        paddingRight: 24,
+                        gap: 8,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
                         borderRadius: 20,
+                        backgroundColor: 'white',
                         borderWidth: 1,
-                        borderColor: 'transparent',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 20,
-                        elevation: 2,
-                        minWidth: 140,
+                        borderColor: '#e5e7eb',
                       }}
                       onPress={() => setShowPaymentModal(true)}
                     >
-                      <View style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: '#f3f4f6',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                      <Ionicons name="add" size={18} color="#6b7280" />
+                      <Text style={{
+                        fontSize: 14,
+                        fontWeight: '600',
+                        color: '#6b7280',
                       }}>
-                        <Ionicons name="add" size={20} color="#6b7280" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{
-                          fontSize: 14,
-                          fontWeight: 'bold',
-                          color: '#181111',
-                          lineHeight: 16,
-                          marginBottom: 4,
-                        }}>
-                          Add New
-                        </Text>
-                        <Text style={{
-                          fontSize: 10,
-                          fontWeight: '600',
-                          color: '#9ca3af',
-                          textTransform: 'uppercase',
-                          letterSpacing: 1,
-                        }}>
-                          Method
-                        </Text>
-                      </View>
+                        Add
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
@@ -656,7 +570,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                     padding: 16,
                     fontSize: 16,
                     color: '#181111',
-                    height: 96,
+                    height: 72,
                     textAlignVertical: 'top',
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 4 },

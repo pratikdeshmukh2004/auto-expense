@@ -50,6 +50,17 @@ export default function DateTimePickerModal({ visible, onClose, onSelectDateTime
       // Update slider value based on initial time
       const totalMinutes = initialDate.getHours() * 60 + initialDate.getMinutes();
       setSliderValue(totalMinutes / 1440);
+      
+      // Scroll to selected date after a short delay
+      setTimeout(() => {
+        const dates = generateMonthDates();
+        const index = dates.findIndex(date => date.toDateString() === initialDate.toDateString());
+        if (index >= 0 && scrollViewRef.current) {
+          const cardWidth = 72;
+          const scrollPosition = index * cardWidth - 120;
+          scrollViewRef.current.scrollTo({ x: Math.max(0, scrollPosition), animated: true });
+        }
+      }, 100);
     }
   }, [visible, initialDate]);
 
