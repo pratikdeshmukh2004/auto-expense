@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from 'expo-secure-store';
 import TransactionModal from '../../components/drawers/TransactionModal';
+import { StorageKeys } from '../../constants/StorageKeys';
 import { AuthService } from "../../services/AuthService";
 import { GmailService } from "../../services/GmailService";
 import { NotificationParser } from "../../services/NotificationParser";
 import { PaymentMethodService } from "../../services/PaymentMethodService";
 import { CategoryService } from '../../services/CategoryService';
+import { StorageService } from "../../services/StorageService";
 import { TransactionService } from "../../services/TransactionService";
 
 export default function SmartParsing() {
@@ -43,6 +45,10 @@ export default function SmartParsing() {
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [lastSyncTime, setLastSyncTime] = useState<string>('Never');
   const [dateRange, setDateRange] = useState<'thisMonth' | 'lastMonth' | 'last3Months' | 'last6Months' | 'last9Months' | 'thisYear' | 'lastYear'>('thisMonth');
+  const [addingKeyword, setAddingKeyword] = useState(false);
+  const [deletingKeyword, setDeletingKeyword] = useState<number | null>(null);
+  const [showAllKeywords, setShowAllKeywords] = useState(false);
+  const [showAllMessages, setShowAllMessages] = useState(false);
 
   useEffect(() => {
     loadKeywords();
@@ -67,7 +73,7 @@ export default function SmartParsing() {
   }, [activeTab, dateRange]);
 
   const checkAutoParsingAndLoad = async () => {
-    const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+    const autoParsingEnabled = await SecureStore.getItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
     if (autoParsingEnabled === 'false') {
       Alert.alert(
         'Auto-Parsing Disabled',
@@ -77,7 +83,7 @@ export default function SmartParsing() {
           { 
             text: 'Enable Now', 
             onPress: async () => {
-              await SecureStore.setItemAsync('auto_parsing_enabled', 'true');
+              await SecureStore.setItemAsync(StorageKeys.AUTO_PARSING_ENABLED, 'true');
               loadTransactionEmails();
             }
           }
@@ -94,7 +100,7 @@ export default function SmartParsing() {
   };
 
   const loadLastSyncTime = async () => {
-    const lastSync = await SecureStore.getItemAsync('last_email_sync');
+    const lastSync = await SecureStore.getItemAsync(StorageKeys.LAST_EMAIL_SYNC);
     if (lastSync) {
       const syncDate = new Date(lastSync);
       const now = new Date();
@@ -120,7 +126,7 @@ export default function SmartParsing() {
     try {
       const transactions = await GmailService.fetchTransactionEmails();
       setRecentMessages(transactions);
-      await SecureStore.setItemAsync('last_email_sync', new Date().toISOString());
+      await SecureStore.setItemAsync(StorageKeys.LAST_EMAIL_SYNC, new Date().toISOString());
       await loadLastSyncTime();
     } catch (error) {
       console.error("Error loading transaction emails:", error);
@@ -212,18 +218,32 @@ export default function SmartParsing() {
   };
 
   const addKeyword = async () => {
-    if (newKeyword.trim()) {
-      const updatedKeywords = [...keywords, newKeyword.trim()];
-      setKeywords(updatedKeywords);
-      await NotificationParser.saveKeywords(updatedKeywords);
-      setNewKeyword("");
+    if (newKeyword.trim() && !addingKeyword) {
+      setAddingKeyword(true);
+      try {
+        const existingKeywords = await StorageService.getKeywords();
+        const newId = Date.now().toString();
+        const updatedKeywords = [...existingKeywords, { id: newId, keyword: newKeyword.trim(), category: 'expense' }];
+        await StorageService.saveKeywords(updatedKeywords);
+        await loadKeywords();
+        setNewKeyword("");
+      } finally {
+        setAddingKeyword(false);
+      }
     }
   };
 
   const removeKeyword = async (index: number) => {
-    const updatedKeywords = keywords.filter((_, i) => i !== index);
-    setKeywords(updatedKeywords);
-    await NotificationParser.saveKeywords(updatedKeywords);
+    if (deletingKeyword === index) return;
+    setDeletingKeyword(index);
+    try {
+      const existingKeywords = await StorageService.getKeywords();
+      const updatedKeywords = existingKeywords.filter((_: any, i: number) => i !== index);
+      await StorageService.saveKeywords(updatedKeywords);
+      await loadKeywords();
+    } finally {
+      setDeletingKeyword(null);
+    }
   };
 
   const getValidation = (messageId: string) => {
@@ -529,17 +549,32 @@ export default function SmartParsing() {
 
             <View style={styles.card}>
               <View style={styles.keywordsContainer}>
-                {keywords.map((keyword, index) => (
+                {(showAllKeywords ? keywords : keywords.slice(0, 6)).map((keyword, index) => (
                   <View key={index} style={styles.keywordTag}>
                     <Text style={styles.keywordText}>{keyword}</Text>
                     <TouchableOpacity
                       onPress={() => removeKeyword(index)}
                       style={styles.keywordCloseButton}
+                      disabled={deletingKeyword === index}
                     >
-                      <Ionicons name="close" size={14} color="#64748b" />
+                      {deletingKeyword === index ? (
+                        <Text style={{ fontSize: 10, color: '#94a3b8' }}>...</Text>
+                      ) : (
+                        <Ionicons name="close" size={14} color="#64748b" />
+                      )}
                     </TouchableOpacity>
                   </View>
                 ))}
+                {keywords.length > 6 && (
+                  <TouchableOpacity 
+                    style={styles.showMoreButton}
+                    onPress={() => setShowAllKeywords(!showAllKeywords)}
+                  >
+                    <Text style={styles.showMoreText}>
+                      {showAllKeywords ? 'Show Less' : `+${keywords.length - 6} More`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.dividerLine} />
@@ -554,8 +589,14 @@ export default function SmartParsing() {
                     onChangeText={setNewKeyword}
                     placeholderTextColor="#94a3b8"
                   />
-                  <TouchableOpacity style={styles.addKeywordButton} onPress={addKeyword}>
-                    <Text style={styles.addKeywordButtonText}>Add</Text>
+                  <TouchableOpacity 
+                    style={styles.addKeywordButton} 
+                    onPress={addKeyword}
+                    disabled={addingKeyword || !newKeyword.trim()}
+                  >
+                    <Text style={styles.addKeywordButtonText}>
+                      {addingKeyword ? 'Adding...' : 'Add'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -855,7 +896,7 @@ export default function SmartParsing() {
             </Text>
           </View>
         ) : (
-          recentMessages.map((message) => {
+          (showAllMessages ? recentMessages : recentMessages.slice(0, 3)).map((message) => {
             const validation = getValidation(message.id);
             return (
             <View key={message.id} style={styles.messageCard}>
@@ -984,6 +1025,24 @@ export default function SmartParsing() {
             </View>
           );
           })
+        )}
+        
+        {recentMessages.length > 3 && (
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <TouchableOpacity 
+              style={styles.showMoreMessagesButton}
+              onPress={() => setShowAllMessages(!showAllMessages)}
+            >
+              <Text style={styles.showMoreMessagesText}>
+                {showAllMessages ? 'Show Less' : `Show ${recentMessages.length - 3} More Messages`}
+              </Text>
+              <Ionicons 
+                name={showAllMessages ? 'chevron-up' : 'chevron-down'} 
+                size={16} 
+                color="#EA2831" 
+              />
+            </TouchableOpacity>
+          </View>
         )}
               </>
             ) : (
@@ -1731,5 +1790,34 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: "#EA2831",
     borderRadius: 1,
+  },
+  showMoreButton: {
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  showMoreText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  showMoreMessagesButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  showMoreMessagesText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#EA2831",
   },
 });

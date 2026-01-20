@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Category, CategoryService } from '../../services/CategoryService';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { PaymentMethod, PaymentMethodService } from '../../services/PaymentMethodService';
 import { Transaction, TransactionService } from '../../services/TransactionService';
+import Shimmer from '../Shimmer';
+import { useAddTransaction, useUpdateTransaction, useCategories, usePaymentMethods } from '../../hooks/useQueries';
 import CategoryModal from './CategoryModal';
 import DateTimePickerModal from './DateTimePickerModal';
 import PaymentMethodModal from './PaymentMethodModal';
@@ -33,18 +34,24 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
   const [notes, setNotes] = useState('');
   const [selectedDateTime, setSelectedDateTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // TanStack Query hooks
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
+  const addTransactionMutation = useAddTransaction();
+  const updateTransactionMutation = useUpdateTransaction();
+
   const isEditMode = !!transaction;
+  const loading = categoriesLoading || paymentMethodsLoading;
 
   useEffect(() => {
     if (visible) {
-      loadData();
       if (!isEditMode) {
         if (prefillData) {
           setAmount(prefillData.amount);
@@ -59,22 +66,15 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
     }
   }, [visible]);
 
-  const loadData = async () => {
-    const cats = await CategoryService.getCategories();
-    const methods = await PaymentMethodService.getPaymentMethods();
-    setCategories(cats);
-    setPaymentMethods(methods);
-    
-    if (!isEditMode) {
-      // Set defaults for add mode
-      if (cats.length > 0 && !selectedCategory) {
-        setSelectedCategory(cats[0].name);
-      }
-      if (methods.length > 0 && !selectedPayment) {
-        setSelectedPayment(methods[0].name);
-      }
+  // Set defaults when categories and payment methods are loaded
+  useEffect(() => {
+    if (!isEditMode && categories.length > 0 && !selectedCategory) {
+      setSelectedCategory(categories[0].name);
     }
-  };
+    if (!isEditMode && paymentMethods.length > 0 && !selectedPayment) {
+      setSelectedPayment(paymentMethods[0].name);
+    }
+  }, [categories, paymentMethods, isEditMode, selectedCategory, selectedPayment]);
 
   useEffect(() => {
     if (transaction && visible && categories.length > 0 && paymentMethods.length > 0) {
@@ -89,11 +89,14 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
   }, [transaction, visible, categories, paymentMethods]);
 
   const handleSave = async () => {
-    if (!amount || !merchant) return;
+    if (!amount || !merchant || isSaving) return;
 
-    try {
-      if (isEditMode && transaction) {
-        await TransactionService.updateTransaction(transaction.id, {
+    setIsSaving(true);
+    
+    if (isEditMode && transaction) {
+      updateTransactionMutation.mutate({
+        id: transaction.id,
+        updates: {
           merchant: merchant,
           amount: amount,
           category: selectedCategory,
@@ -101,51 +104,62 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
           date: selectedDateTime.toISOString(),
           type: transactionType,
           notes: notes
-        });
-      } else {
-        await TransactionService.addTransaction({
-          merchant: merchant,
-          amount: amount,
-          category: selectedCategory,
-          paymentMethod: selectedPayment,
-          date: selectedDateTime.toISOString(),
-          type: transactionType,
-          status: prefillData ? 'pending' : 'completed',
-          notes: notes || (prefillData ? 'Email Automated' : ''),
-          sender: prefillData?.sender
-        });
-      }
-      
-      if (isEditMode) {
-        onTransactionUpdated?.();
-      } else {
-        onTransactionAdded?.();
-        // Reset form for add mode
-        setAmount('');
-        setMerchant('');
-        setSelectedCategory(categories.length > 0 ? categories[0].name : '');
-        setSelectedPayment(paymentMethods.length > 0 ? paymentMethods[0].name : '');
-        setNotes('');
-        setSelectedDateTime(new Date());
-      }
-      
-      onClose();
-    } catch (error) {
-      console.error('Error saving transaction:', error);
+        }
+      }, {
+        onSuccess: () => {
+          onTransactionUpdated?.();
+          onClose();
+          setIsSaving(false);
+        },
+        onError: () => {
+          setIsSaving(false);
+        }
+      });
+    } else {
+      addTransactionMutation.mutate({
+        merchant: merchant,
+        amount: amount,
+        category: selectedCategory,
+        paymentMethod: selectedPayment,
+        date: selectedDateTime.toISOString(),
+        type: transactionType,
+        status: prefillData ? 'pending' : 'completed',
+        notes: notes || (prefillData ? 'Email Automated' : ''),
+        sender: prefillData?.sender
+      }, {
+        onSuccess: () => {
+          onTransactionAdded?.();
+          // Reset form for add mode
+          setAmount('');
+          setMerchant('');
+          setSelectedCategory(categories.length > 0 ? categories[0].name : '');
+          setSelectedPayment(paymentMethods.length > 0 ? paymentMethods[0].name : '');
+          setNotes('');
+          setSelectedDateTime(new Date());
+          onClose();
+          setIsSaving(false);
+        },
+        onError: () => {
+          setIsSaving(false);
+        }
+      });
     }
   };
 
   const handleDelete = async () => {
-    if (!transaction) return;
+    if (!transaction || isDeleting) return;
 
+    setIsDeleting(true);
+    
     try {
       await TransactionService.deleteTransaction(transaction.id);
-      onTransactionUpdated?.();
-      onClose();
-      // Navigate back to transactions list after deletion
-      router.back();
+      
+      // Navigate to transactions page after deletion
+      router.replace('/transactions');
     } catch (error) {
       console.error('Error deleting transaction:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -413,7 +427,14 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   marginBottom: 12,
                   marginLeft: 4,
                 }}>Category</Text>
-                <ScrollView 
+                {loading ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 24 }}>
+                    <Shimmer width={100} height={38} borderRadius={20} />
+                    <Shimmer width={120} height={38} borderRadius={20} />
+                    <Shimmer width={80} height={38} borderRadius={20} />
+                  </View>
+                ) : (
+                  <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false}
                   style={{ marginHorizontal: -24 }}
@@ -475,6 +496,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
+                )}
               </View>
 
               {/* Payment Method */}
@@ -488,7 +510,14 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   marginBottom: 12,
                   marginLeft: 4,
                 }}>Payment Method</Text>
-                <ScrollView 
+                {loading ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 24 }}>
+                    <Shimmer width={90} height={38} borderRadius={20} />
+                    <Shimmer width={110} height={38} borderRadius={20} />
+                    <Shimmer width={70} height={38} borderRadius={20} />
+                  </View>
+                ) : (
+                  <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false}
                   style={{ marginHorizontal: -24 }}
@@ -550,6 +579,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
+                )}
               </View>
 
               {/* Notes */}
@@ -611,14 +641,14 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
           }}>
             <TouchableOpacity
               style={{
-                backgroundColor: amount && merchant ? '#EA2831' : '#94a3b8',
+                backgroundColor: (amount && merchant && !isSaving) ? '#EA2831' : '#94a3b8',
                 height: 56,
                 borderRadius: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                shadowColor: amount && merchant ? '#EA2831' : '#94a3b8',
+                shadowColor: (amount && merchant && !isSaving) ? '#EA2831' : '#94a3b8',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 15,
@@ -626,12 +656,21 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 marginBottom: isEditMode ? 12 : 0,
               }}
               onPress={handleSave}
-              disabled={!amount || !merchant}
+              disabled={!amount || !merchant || isSaving}
             >
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>
-                {isEditMode ? 'Save Changes' : 'Save Transaction'}
-              </Text>
-              <Ionicons name="checkmark-circle" size={24} color="white" />
+              {isSaving ? (
+                <>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>Saving...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>
+                    {isEditMode ? 'Save Changes' : 'Save Transaction'}
+                  </Text>
+                  <Ionicons name="checkmark-circle" size={24} color="white" />
+                </>
+              )}
             </TouchableOpacity>
             
             {isEditMode && (
@@ -646,9 +685,19 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   gap: 8,
                 }}
                 onPress={handleDelete}
+                disabled={isDeleting}
               >
-                <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#ef4444' }}>Delete Transaction</Text>
+                {isDeleting ? (
+                  <>
+                    <ActivityIndicator size="small" color="#ef4444" />
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#ef4444' }}>Deleting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#ef4444' }}>Delete Transaction</Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -670,7 +719,6 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
         onSave={() => {
-          loadData();
           setShowCategoryModal(false);
         }}
         isAddMode={true}
@@ -680,7 +728,6 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
         visible={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         onSave={() => {
-          loadData();
           setShowPaymentModal(false);
         }}
         isAddMode={true}

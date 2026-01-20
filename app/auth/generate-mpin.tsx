@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
+import { StorageKeys } from '../../constants/StorageKeys';
 
 export default function GenerateMPINScreen() {
   const [mpin, setMpin] = useState('');
@@ -45,8 +46,8 @@ export default function GenerateMPINScreen() {
 
   const verifyMpin = async (enteredConfirmMpin: string) => {
     if (mpin === enteredConfirmMpin) {
-      await SecureStore.setItemAsync('user_mpin', mpin);
-      router.replace('/dashboard');
+      await SecureStore.setItemAsync(StorageKeys.USER_MPIN, mpin);
+      router.replace('/auth/storage-selection');
     } else {
       Alert.alert('MPIN Mismatch', 'Please try again');
       setMpin('');

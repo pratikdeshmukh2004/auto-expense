@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, PanResponder, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { CategoryService } from '../../services/CategoryService';
-import { PaymentMethodService } from '../../services/PaymentMethodService';
-import { TransactionService } from '../../services/TransactionService';
+import { useCategories, usePaymentMethods, useTransactions } from '../../hooks/useQueries';
+import Shimmer from '../Shimmer';
 
 interface TransactionFiltersModalProps {
   visible: boolean;
@@ -24,16 +23,20 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
   const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [customDate, setCustomDate] = useState('');
-  const [categories, setCategories] = useState<any[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [topMerchants, setTopMerchants] = useState<string[]>([]);
+
+  // TanStack Query hooks
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
+  const { data: transactions = [], isLoading: transactionsLoading } = useTransactions();
+  
+  const loading = categoriesLoading || paymentMethodsLoading || transactionsLoading;
 
   const pan = useRef(new Animated.ValueXY()).current;
   
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
     if (visible) {
-      loadData();
       // Sync with current filters from parent
       if (currentFilters) {
         setSelectedPeriod(currentFilters.period);
@@ -44,18 +47,9 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
     }
   }, [visible, currentFilters]);
 
-  const loadData = async () => {
-    try {
-      const [categoriesData, paymentMethodsData, transactions] = await Promise.all([
-        CategoryService.getCategories(),
-        PaymentMethodService.getPaymentMethods(),
-        TransactionService.getTransactions()
-      ]);
-      
-      setCategories(categoriesData);
-      setPaymentMethods(paymentMethodsData);
-      
-      // Get top 5 merchants by frequency
+  // Calculate top merchants when transactions data changes
+  useEffect(() => {
+    if (transactions.length > 0) {
       const merchantCounts = transactions.reduce((acc: any, transaction: any) => {
         if (transaction.merchant) {
           acc[transaction.merchant] = (acc[transaction.merchant] || 0) + 1;
@@ -69,10 +63,8 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
         .map(([merchant]) => merchant);
       
       setTopMerchants(sortedMerchants);
-    } catch (error) {
-      console.error('Error loading filter data:', error);
     }
-  };
+  }, [transactions]);
   
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -213,7 +205,15 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
             {/* Categories */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Categories</Text>
-              <View style={styles.chipsWrap}>
+              {loading ? (
+                <View style={styles.chipsWrap}>
+                  <Shimmer width={80} height={34} borderRadius={16} />
+                  <Shimmer width={100} height={34} borderRadius={16} />
+                  <Shimmer width={90} height={34} borderRadius={16} />
+                  <Shimmer width={70} height={34} borderRadius={16} />
+                </View>
+              ) : (
+                <View style={styles.chipsWrap}>
                 {categories.map((category) => (
                   <TouchableOpacity
                     key={category.id}
@@ -244,6 +244,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   <Text style={styles.categoryChipText}>Add New</Text>
                 </TouchableOpacity>
               </View>
+              )}
             </View>
 
             <View style={styles.divider} />
@@ -251,7 +252,14 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
             {/* Payment Methods */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Payment Methods</Text>
-              <View style={styles.chipsWrap}>
+              {loading ? (
+                <View style={styles.chipsWrap}>
+                  <Shimmer width={70} height={34} borderRadius={16} />
+                  <Shimmer width={85} height={34} borderRadius={16} />
+                  <Shimmer width={95} height={34} borderRadius={16} />
+                </View>
+              ) : (
+                <View style={styles.chipsWrap}>
                 {paymentMethods.map((payment) => (
                   <TouchableOpacity
                     key={payment.id}
@@ -282,6 +290,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   <Text style={styles.categoryChipText}>Add New</Text>
                 </TouchableOpacity>
               </View>
+              )}
             </View>
 
             <View style={styles.divider} />

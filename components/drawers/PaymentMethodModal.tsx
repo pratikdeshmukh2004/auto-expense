@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
-import { PaymentMethodService, PaymentMethod } from '../../services/PaymentMethodService';
+import { PaymentMethod } from '../../services/PaymentMethodService';
+import { useAddPaymentMethod, useUpdatePaymentMethod, useDeletePaymentMethod } from '../../hooks/useQueries';
 
 interface PaymentMethodModalProps {
   visible: boolean;
@@ -17,6 +18,11 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
   const [selectedColor, setSelectedColor] = useState('#EA2831');
   const [selectedIcon, setSelectedIcon] = useState('card');
   const [selectedType, setSelectedType] = useState<'card' | 'bank' | 'wallet' | 'cash'>('card');
+  
+  // TanStack Query mutations
+  const addPaymentMethodMutation = useAddPaymentMethod();
+  const updatePaymentMethodMutation = useUpdatePaymentMethod();
+  const deletePaymentMethodMutation = useDeletePaymentMethod();
   
   // Reset state when modal opens
   React.useEffect(() => {
@@ -72,24 +78,35 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
     
     try {
       if (isAddMode) {
-        await PaymentMethodService.addPaymentMethod({
+        addPaymentMethodMutation.mutate({
           name: name.trim(),
           icon: selectedIcon,
           color: selectedColor,
           type: selectedType,
           description: description.trim() || `${name.trim()} payment method`
+        }, {
+          onSuccess: () => {
+            onSave();
+            onClose();
+          }
         });
       } else if (paymentMethod) {
-        await PaymentMethodService.updatePaymentMethod(paymentMethod.id, {
-          name: name.trim(),
-          icon: selectedIcon,
-          color: selectedColor,
-          type: selectedType,
-          description: description.trim() || paymentMethod.description
+        updatePaymentMethodMutation.mutate({
+          id: paymentMethod.id,
+          updates: {
+            name: name.trim(),
+            icon: selectedIcon,
+            color: selectedColor,
+            type: selectedType,
+            description: description.trim() || paymentMethod.description
+          }
+        }, {
+          onSuccess: () => {
+            onSave();
+            onClose();
+          }
         });
       }
-      onSave();
-      onClose();
     } catch (error) {
       console.error('Error saving payment method:', error);
     }
@@ -118,9 +135,15 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
             style: 'destructive',
             onPress: async () => {
               try {
-                await PaymentMethodService.deletePaymentMethod(paymentMethod.id);
-                onSave();
-                onClose();
+                deletePaymentMethodMutation.mutate(paymentMethod.id, {
+                  onSuccess: () => {
+                    onSave();
+                    onClose();
+                  },
+                  onError: () => {
+                    Alert.alert('Error', 'Failed to delete payment method. Please try again.');
+                  }
+                });
               } catch (error) {
                 console.error('Error deleting payment method:', error);
                 Alert.alert('Error', 'Failed to delete payment method. Please try again.');

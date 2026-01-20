@@ -1,74 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import TransactionModal from '../../components/drawers/TransactionModal';
-import { TransactionService, Transaction } from '../../services/TransactionService';
+import Shimmer from '../../components/Shimmer';
+import { Transaction } from '../../services/TransactionService';
+import { useTransactions } from '../../hooks/useQueries';
 
 export default function TransactionDetailsScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
-  const [transaction, setTransaction] = useState<Transaction | null>(null);
-  const [recentHistory, setRecentHistory] = useState<Transaction[]>([]);
-  const [monthlyTotal, setMonthlyTotal] = useState(0);
-  const [weeklyData, setWeeklyData] = useState<number[]>([]);
   const { id } = useLocalSearchParams();
-
-  useEffect(() => {
-    loadTransaction();
-  }, [id]);
-
-  const loadTransaction = async () => {
-    if (!id) return;
+  
+  // Use TanStack Query to get transactions
+  const { data: transactions = [], isLoading } = useTransactions();
+  
+  // Find the specific transaction
+  const transaction = transactions.find(t => t.id === id) || null;
+  
+  // Calculate derived data
+  const recentHistory = transaction ? transactions
+    .filter(t => t.merchant === transaction.merchant && t.id !== transaction.id)
+    .slice(0, 3) : [];
     
-    try {
-      const transactions = await TransactionService.getTransactions();
-      const foundTransaction = transactions.find(t => t.id === id);
-      setTransaction(foundTransaction || null);
-      
-      if (foundTransaction) {
-        // Get recent history for same merchant
-        const history = transactions
-          .filter(t => t.merchant === foundTransaction.merchant && t.id !== foundTransaction.id)
-          .slice(0, 3);
-        setRecentHistory(history);
-        
-        // Calculate monthly total for same merchant
-        const now = new Date();
-        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthlyTransactions = transactions.filter(t => 
-          t.merchant === foundTransaction.merchant && 
-          new Date(t.timestamp) >= thisMonth
-        );
-        const total = monthlyTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-        setMonthlyTotal(total);
-        
-        // Generate weekly spending data for chart
-        const weeklyData = [];
-        for (let i = 6; i >= 0; i--) {
-          const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-          const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-          const weekTransactions = transactions.filter(t => 
-            t.merchant === foundTransaction.merchant &&
-            new Date(t.timestamp) >= weekStart &&
-            new Date(t.timestamp) < weekEnd
-          );
-          const weekTotal = weekTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-          weeklyData.push(weekTotal);
-        }
-        setWeeklyData(weeklyData);
-      }
-    } catch (error) {
-      console.error('Error loading transaction:', error);
+  const monthlyTotal = transaction ? (() => {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyTransactions = transactions.filter(t => 
+      t.merchant === transaction.merchant && 
+      new Date(t.timestamp) >= thisMonth
+    );
+    return monthlyTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  })() : 0;
+  
+  const weeklyData = transaction ? (() => {
+    const now = new Date();
+    const weeklyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const weekTransactions = transactions.filter(t => 
+        t.merchant === transaction.merchant &&
+        new Date(t.timestamp) >= weekStart &&
+        new Date(t.timestamp) < weekEnd
+      );
+      const weekTotal = weekTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      weeklyData.push(weekTotal);
     }
-  };
+    return weeklyData;
+  })() : [];
 
   const handleTransactionUpdated = () => {
-    loadTransaction();
     setShowEditModal(false);
   };
 
-  if (!transaction) {
+  if (!transaction && !isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6', alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="receipt-outline" size={64} color="#94a3b8" />
@@ -123,7 +109,49 @@ export default function TransactionDetailsScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={{ paddingHorizontal: 16, paddingBottom: 24, gap: 16 }}>
+        {isLoading ? (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 24, gap: 16 }}>
+            {/* Amount Section Shimmer */}
+            <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+              <Shimmer width={200} height={48} borderRadius={8} />
+              <Shimmer width={150} height={20} borderRadius={8} />
+              <Shimmer width={80} height={24} borderRadius={12} style={{ marginTop: 12 }} />
+            </View>
+            
+            {/* Details Section Shimmer */}
+            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+              <Shimmer width={60} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
+              <View style={{ gap: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Shimmer width={100} height={16} borderRadius={8} />
+                  <Shimmer width={80} height={16} borderRadius={8} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Shimmer width={80} height={16} borderRadius={8} />
+                  <Shimmer width={60} height={16} borderRadius={8} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Shimmer width={70} height={16} borderRadius={8} />
+                  <Shimmer width={50} height={16} borderRadius={8} />
+                </View>
+              </View>
+            </View>
+            
+            {/* Insights Section Shimmer */}
+            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+              <Shimmer width={120} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
+              <Shimmer width="100%" height={96} borderRadius={8} />
+            </View>
+            
+            {/* History Section Shimmer */}
+            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+              <Shimmer width={100} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
+              <Shimmer width="100%" height={60} borderRadius={8} style={{ marginBottom: 12 }} />
+              <Shimmer width="100%" height={60} borderRadius={8} />
+            </View>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 24, gap: 16 }}>
           {/* Amount Section */}
           <View style={{
             alignItems: 'center',
@@ -443,6 +471,7 @@ export default function TransactionDetailsScreen() {
             </View>
           </View>
         </View>
+        )}
       </ScrollView>
       
       {/* Floating Edit Button */}

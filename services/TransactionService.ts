@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { StorageService } from './StorageService';
 
 export interface Transaction {
   id: string;
@@ -16,19 +16,14 @@ export interface Transaction {
 }
 
 export class TransactionService {
-  private static readonly TRANSACTIONS_KEY = 'app_transactions';
-
   static async getTransactions(): Promise<Transaction[]> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return [];
-      
-      const transactions = JSON.parse(stored);
+      const transactions = await StorageService.getTransactions();
       return transactions
         .filter((t: any) => t.status !== 'rejected')
         .map((t: any) => ({
           ...t,
-          timestamp: new Date(t.timestamp)
+          timestamp: new Date(t.timestamp || t.date)
         }));
     } catch (error) {
       console.error('Error getting transactions:', error);
@@ -38,13 +33,10 @@ export class TransactionService {
 
   static async getAllTransactions(): Promise<Transaction[]> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return [];
-      
-      const transactions = JSON.parse(stored);
+      const transactions = await StorageService.getTransactions();
       return transactions.map((t: any) => ({
         ...t,
-        timestamp: new Date(t.timestamp)
+        timestamp: new Date(t.timestamp || t.date)
       }));
     } catch (error) {
       console.error('Error getting all transactions:', error);
@@ -54,15 +46,12 @@ export class TransactionService {
 
   static async getRejectedTransactions(): Promise<Transaction[]> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return [];
-      
-      const transactions = JSON.parse(stored);
+      const transactions = await StorageService.getTransactions();
       return transactions
         .filter((t: any) => t.status === 'rejected')
         .map((t: any) => ({
           ...t,
-          timestamp: new Date(t.timestamp)
+          timestamp: new Date(t.timestamp || t.date)
         }));
     } catch (error) {
       console.error('Error getting rejected transactions:', error);
@@ -72,16 +61,13 @@ export class TransactionService {
 
   static async addTransaction(transaction: Omit<Transaction, 'id' | 'timestamp'>): Promise<Transaction> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      const allTransactions = stored ? JSON.parse(stored) : [];
       const newTransaction: Transaction = {
         ...transaction,
         id: Date.now().toString(),
         timestamp: transaction.date ? new Date(transaction.date) : new Date()
       };
       
-      allTransactions.unshift(newTransaction);
-      await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(allTransactions));
+      await StorageService.addTransaction(newTransaction);
       return newTransaction;
     } catch (error) {
       console.error('Error adding transaction:', error);
@@ -91,19 +77,16 @@ export class TransactionService {
 
   static async updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return;
-      
-      const allTransactions = JSON.parse(stored);
-      const index = allTransactions.findIndex((t: any) => t.id === id);
+      const transactions = await StorageService.getTransactions();
+      const index = transactions.findIndex((t: any) => t.id === id);
       
       if (index !== -1) {
-        const updatedTransaction = { ...allTransactions[index], ...updates };
+        const updatedTransaction = { ...transactions[index], ...updates };
         if (updates.date) {
           updatedTransaction.timestamp = new Date(updates.date);
         }
-        allTransactions[index] = updatedTransaction;
-        await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(allTransactions));
+        transactions[index] = updatedTransaction;
+        await StorageService.saveTransactions(transactions);
       }
     } catch (error) {
       console.error('Error updating transaction:', error);
@@ -113,12 +96,7 @@ export class TransactionService {
 
   static async deleteTransaction(id: string): Promise<void> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return;
-      
-      const allTransactions = JSON.parse(stored);
-      const filtered = allTransactions.filter((t: any) => t.id !== id);
-      await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(filtered));
+      await StorageService.deleteTransaction(id);
     } catch (error) {
       console.error('Error deleting transaction:', error);
       throw error;
@@ -174,12 +152,9 @@ export class TransactionService {
 
   static async deleteTransactionsBySender(sender: string): Promise<void> {
     try {
-      const stored = await SecureStore.getItemAsync(this.TRANSACTIONS_KEY);
-      if (!stored) return;
-      
-      const allTransactions = JSON.parse(stored);
-      const filtered = allTransactions.filter((t: any) => t.sender !== sender);
-      await SecureStore.setItemAsync(this.TRANSACTIONS_KEY, JSON.stringify(filtered));
+      const transactions = await StorageService.getTransactions();
+      const filtered = transactions.filter((t: any) => t.sender !== sender);
+      await StorageService.saveTransactions(filtered);
     } catch (error) {
       console.error('Error deleting transactions by sender:', error);
       throw error;

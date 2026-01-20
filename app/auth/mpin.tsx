@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StorageKeys } from '../../constants/StorageKeys';
 
 export default function MPINScreen() {
   const [mpin, setMpin] = useState('');
@@ -19,7 +20,7 @@ export default function MPINScreen() {
   }, []);
 
   const checkMpinExistence = async () => {
-    const storedMpin = await SecureStore.getItemAsync('user_mpin');
+    const storedMpin = await SecureStore.getItemAsync(StorageKeys.USER_MPIN);
     if (!storedMpin) {
       router.replace('/auth/generate-mpin');
     }
@@ -29,7 +30,7 @@ export default function MPINScreen() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    const biometricSetting = await SecureStore.getItemAsync('biometric_enabled');
+    const biometricSetting = await SecureStore.getItemAsync(StorageKeys.BIOMETRIC_ENABLED);
     
     if (hasHardware && isEnrolled) {
       setBiometricAvailable(true);
@@ -68,7 +69,7 @@ export default function MPINScreen() {
   };
 
   const verifyMpin = async (enteredMpin: string) => {
-    const storedMpin = await SecureStore.getItemAsync('user_mpin');
+    const storedMpin = await SecureStore.getItemAsync(StorageKeys.USER_MPIN);
     
     if (!storedMpin) {
       // Should not happen, but failsafe
@@ -93,7 +94,7 @@ export default function MPINScreen() {
   };
 
   const handleBiometricAuth = async () => {
-    const biometricSetting = await SecureStore.getItemAsync('biometric_enabled');
+    const biometricSetting = await SecureStore.getItemAsync(StorageKeys.BIOMETRIC_ENABLED);
     
     if (!biometricAvailable) {
       const biometricName = Platform.OS === 'ios' ? 'Face ID' : 'Fingerprint';

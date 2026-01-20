@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TransactionCard from '../../components/TransactionCard';
+import Shimmer from '../../components/Shimmer';
 import TransactionFiltersModal from '../../components/drawers/TransactionFiltersModal';
 import TransactionModal from '../../components/drawers/TransactionModal';
-import { CategoryService } from '../../services/CategoryService';
-import { PaymentMethodService } from '../../services/PaymentMethodService';
-import { Transaction, TransactionService } from '../../services/TransactionService';
+import { Transaction } from '../../services/TransactionService';
 import { getRelativeTime } from '../../utils/dateUtils';
+import { useCategories, usePaymentMethods, useTransactions, useDeleteTransaction, useAddTransaction } from '../../hooks/useQueries';
 
 
 
@@ -27,25 +27,38 @@ export default function TransactionsIndex() {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [bulkEditCategory, setBulkEditCategory] = useState<string | undefined>();
   const [bulkEditPaymentMethod, setBulkEditPaymentMethod] = useState<string | undefined>();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryIcons, setCategoryIcons] = useState<{[key: string]: string}>({});
-  const [categoryColors, setCategoryColors] = useState<{[key: string]: string}>({});
-  const [categories, setCategories] = useState<any[]>([]);
-  const [allCategories, setAllCategories] = useState<any[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [allPaymentMethods, setAllPaymentMethods] = useState<any[]>([]);
   const [topMerchants, setTopMerchants] = useState<string[]>([]);
   const [selectedDateFilter, setSelectedDateFilter] = useState('This Month');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  
+  // TanStack Query hooks
+  const { data: transactions = [], isLoading: transactionsLoading, refetch } = useTransactions();
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
+  const deleteTransactionMutation = useDeleteTransaction();
+  const addTransactionMutation = useAddTransaction();
+  
+  const loading = (transactionsLoading || categoriesLoading || paymentMethodsLoading) && transactions.length === 0;
+  
+  const [categoryIcons, setCategoryIcons] = useState<{[key: string]: string}>({});
+  const [categoryColors, setCategoryColors] = useState<{[key: string]: string}>({});
+  const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [allPaymentMethods, setAllPaymentMethods] = useState<any[]>([]);
   
   useEffect(() => {
-    loadTransactions();
+    // Data will be automatically loaded by TanStack Query
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadTransactions();
+    }, [])
+  );
   
   const handleDateFilterSelect = (filter: string) => {
     setSelectedDateFilter(filter);
@@ -188,46 +201,21 @@ export default function TransactionsIndex() {
   };
   
   const loadTransactions = async () => {
-    try {
-      const allTransactions = await TransactionService.getTransactions();
-      const categoriesData = await CategoryService.getCategories();
-      
-      // Create category icon and color mapping
-      const iconMap = categoriesData.reduce((acc, cat) => {
-        acc[cat.name] = cat.icon;
-        return acc;
-      }, {} as {[key: string]: string});
-      
-      const colorMap = categoriesData.reduce((acc, cat) => {
-        acc[cat.name] = cat.color;
-        return acc;
-      }, {} as {[key: string]: string});
-      
-      // Get top 3 categories by transaction count
-      const categoryCount = allTransactions.reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + 1;
-        return acc;
-      }, {} as {[key: string]: number});
-      
-      const topCategories = Object.entries(categoryCount)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 3)
-        .map(([name]) => categoriesData.find(c => c.name === name))
-        .filter(Boolean);
-      
-      // Get payment methods data
-      const paymentMethodsData = await PaymentMethodService.getPaymentMethods();
-      
-      setTransactions(allTransactions);
-      setCategoryIcons(iconMap);
-      setCategoryColors(colorMap);
-      setCategories(topCategories);
-      setAllCategories(categoriesData);
-      setPaymentMethods(paymentMethodsData.slice(0, 3));
-      setAllPaymentMethods(paymentMethodsData);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    }
+    // Data is now handled by TanStack Query hooks
+    const iconMap = categories.reduce((acc, cat) => {
+      acc[cat.name] = cat.icon;
+      return acc;
+    }, {} as {[key: string]: string});
+    
+    const colorMap = categories.reduce((acc, cat) => {
+      acc[cat.name] = cat.color;
+      return acc;
+    }, {} as {[key: string]: string});
+    
+    setCategoryIcons(iconMap);
+    setCategoryColors(colorMap);
+    setAllCategories(categories);
+    setAllPaymentMethods(paymentMethods);
   };
   
   const handleDeleteTransaction = async (id: string) => {
@@ -237,14 +225,12 @@ export default function TransactionsIndex() {
   
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
-    try {
-      await TransactionService.deleteTransaction(transactionToDelete);
-      await loadTransactions();
-      setShowDeleteConfirm(false);
-      setTransactionToDelete(null);
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-    }
+    deleteTransactionMutation.mutate(transactionToDelete, {
+      onSuccess: () => {
+        setShowDeleteConfirm(false);
+        setTransactionToDelete(null);
+      }
+    });
   };
   
   const handleBulkDelete = () => {
@@ -252,17 +238,12 @@ export default function TransactionsIndex() {
   };
   
   const confirmBulkDelete = async () => {
-    try {
-      for (const id of selectedTransactions) {
-        await TransactionService.deleteTransaction(id);
-      }
-      await loadTransactions();
-      setSelectedTransactions([]);
-      setSelectionMode(false);
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error('Error deleting transactions:', error);
+    for (const id of selectedTransactions) {
+      deleteTransactionMutation.mutate(id);
     }
+    setSelectedTransactions([]);
+    setSelectionMode(false);
+    setShowDeleteConfirm(false);
   };
   
   const toggleSelection = (id: string) => {
@@ -302,22 +283,20 @@ export default function TransactionsIndex() {
   
   const confirmDuplicate = async () => {
     if (!transactionToDuplicate) return;
-    try {
-      await TransactionService.addTransaction({
-        merchant: transactionToDuplicate.merchant,
-        amount: transactionToDuplicate.amount,
-        category: transactionToDuplicate.category,
-        paymentMethod: transactionToDuplicate.paymentMethod,
-        date: new Date().toISOString(),
-        type: transactionToDuplicate.type,
-        status: 'completed'
-      });
-      await loadTransactions();
-      setShowDuplicateConfirm(false);
-      setTransactionToDuplicate(null);
-    } catch (error) {
-      console.error('Error duplicating transaction:', error);
-    }
+    addTransactionMutation.mutate({
+      merchant: transactionToDuplicate.merchant,
+      amount: transactionToDuplicate.amount,
+      category: transactionToDuplicate.category,
+      paymentMethod: transactionToDuplicate.paymentMethod,
+      date: new Date().toISOString(),
+      type: transactionToDuplicate.type,
+      status: 'completed'
+    }, {
+      onSuccess: () => {
+        setShowDuplicateConfirm(false);
+        setTransactionToDuplicate(null);
+      }
+    });
   };
   
   const handleEditTransaction = (transaction: Transaction) => {
@@ -571,7 +550,12 @@ export default function TransactionsIndex() {
         </View>
 
         {/* Filter Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+        {loading ? (
+          <View style={{ marginBottom: 16, paddingVertical: 8 }}>
+            <Shimmer width={300} height={36} borderRadius={18} />
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 8 }}>
             {/* Type filters */}
             {[
@@ -709,10 +693,21 @@ export default function TransactionsIndex() {
             ))}
           </View>
         </ScrollView>
+        )}
       </View>
 
       {/* Transactions List */}
-      <ScrollView 
+      {loading ? (
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, marginBottom: 20 }}>
+          <Shimmer width={80} height={16} borderRadius={8} style={{ marginBottom: 8 }} />
+          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
+          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
+          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
+          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
+          <Shimmer width="100%" height={80} borderRadius={12} />
+        </View>
+      ) : (
+        <ScrollView 
         style={{ flex: 1 }} 
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -769,6 +764,7 @@ export default function TransactionsIndex() {
           </View>
         )}
       </ScrollView>
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity 
@@ -795,10 +791,8 @@ export default function TransactionsIndex() {
 
       <TransactionModal 
         visible={showAddModal} 
-        onClose={() => {
-          setShowAddModal(false);
-          loadTransactions();
-        }} 
+        onClose={() => setShowAddModal(false)}
+        onTransactionAdded={() => setShowAddModal(false)}
       />
       
       <TransactionModal 
@@ -809,7 +803,6 @@ export default function TransactionsIndex() {
         }}
         transaction={selectedTransaction || undefined}
         onTransactionUpdated={() => {
-          loadTransactions();
           setShowEditModal(false);
           setSelectedTransaction(null);
         }}

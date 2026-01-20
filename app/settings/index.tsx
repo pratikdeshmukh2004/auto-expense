@@ -5,18 +5,15 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SettingsBottomSheet from '../../components/SettingsBottomSheet';
-import { CategoryService } from '../../services/CategoryService';
-import { PaymentMethodService } from '../../services/PaymentMethodService';
-
+import { StorageKeys } from '../../constants/StorageKeys';
 import { AuthService } from '../../services/AuthService';
+import { useCategories, usePaymentMethods } from '../../hooks/useQueries';
 
 export default function SettingsIndex() {
   const [autoParsing, setAutoParsing] = useState(true);
   const [dailySummary, setDailySummary] = useState(true);
   const [overspendingAlerts, setOverspendingAlerts] = useState(false);
   const [faceIdLock, setFaceIdLock] = useState(false);
-  const [categoriesCount, setCategoriesCount] = useState(0);
-  const [paymentMethodsCount, setPaymentMethodsCount] = useState(0);
   const [showPrivacySheet, setShowPrivacySheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [showAboutSheet, setShowAboutSheet] = useState(false);
@@ -25,16 +22,26 @@ export default function SettingsIndex() {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
 
+  // TanStack Query hooks
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
+  
+  // Debug logging
+  console.log('Settings data:', { 
+    categoriesCount: categories.length, 
+    paymentMethodsCount: paymentMethods.length,
+    categoriesLoading,
+    paymentMethodsLoading
+  });
+
   useEffect(() => {
     loadBiometricSetting();
     loadAutoParsingSettings();
-    loadCounts();
     loadUserInfo();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
-      loadCounts();
       loadUserInfo();
     }, [])
   );
@@ -52,31 +59,26 @@ export default function SettingsIndex() {
     }
   };
 
-  const loadCounts = async () => {
-    const categories = await CategoryService.getCategories();
-    const paymentMethods = await PaymentMethodService.getPaymentMethods();
-    setCategoriesCount(categories.length);
-    setPaymentMethodsCount(paymentMethods.length);
-  };
+
 
   const loadBiometricSetting = async () => {
-    const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
+    const biometricEnabled = await SecureStore.getItemAsync(StorageKeys.BIOMETRIC_ENABLED);
     setFaceIdLock(biometricEnabled === 'true');
   };
 
   const loadAutoParsingSettings = async () => {
-    const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+    const autoParsingEnabled = await SecureStore.getItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
     setAutoParsing(autoParsingEnabled !== 'false');
   };
 
   const handleAutoParsingToggle = async (value: boolean) => {
     setAutoParsing(value);
-    await SecureStore.setItemAsync('auto_parsing_enabled', value.toString());
+    await SecureStore.setItemAsync(StorageKeys.AUTO_PARSING_ENABLED, value.toString());
   };
 
   const handleBiometricToggle = async (value: boolean) => {
     setFaceIdLock(value);
-    await SecureStore.setItemAsync('biometric_enabled', value.toString());
+    await SecureStore.setItemAsync(StorageKeys.BIOMETRIC_ENABLED, value.toString());
   };
 
   const handleLogout = () => {
@@ -402,6 +404,37 @@ export default function SettingsIndex() {
             shadowRadius: 2,
             elevation: 1,
           }}>
+            {/* Storage Management */}
+            <TouchableOpacity 
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f3f4f6',
+              }}
+              onPress={() => router.push('/settings/storage-management')}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="cloud" size={20} color="#3b82f6" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Storage Management</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Offline/Online storage settings</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
             {/* Manage Categories */}
             <TouchableOpacity 
               style={{
@@ -427,7 +460,7 @@ export default function SettingsIndex() {
                 </View>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Manage Categories</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{categoriesCount} categories configured</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{categories.length} categories configured</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -456,7 +489,7 @@ export default function SettingsIndex() {
                 </View>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Payment Methods</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{paymentMethodsCount} methods configured</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{paymentMethods.length} methods configured</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />

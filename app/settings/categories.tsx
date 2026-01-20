@@ -1,26 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryModal from '../../components/drawers/CategoryModal';
-import { CategoryService, Category } from '../../services/CategoryService';
+import { Category } from '../../services/CategoryService';
+import { useCategories } from '../../hooks/useQueries';
 
 export default function CategoriesScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-
   const [isAddMode, setIsAddMode] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    const cats = await CategoryService.getCategories();
-    setCategories(cats);
-  };
+  // TanStack Query hook
+  const { data: categories = [] } = useCategories();
 
 
   const addCategory = () => {
@@ -38,7 +31,7 @@ export default function CategoriesScreen() {
 
 
   const handleSave = () => {
-    loadCategories();
+    // Data will be automatically refetched by TanStack Query
   };
 
   return (

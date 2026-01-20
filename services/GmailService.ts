@@ -46,7 +46,8 @@ export class GmailService {
   static async fetchTransactionEmails(): Promise<ParsedTransaction[]> {
     try {
       const SecureStore = await import('expo-secure-store');
-      const autoParsingEnabled = await SecureStore.getItemAsync('auto_parsing_enabled');
+      const { StorageKeys } = await import('../constants/StorageKeys');
+      const autoParsingEnabled = await SecureStore.getItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
       if (autoParsingEnabled === 'false') {
         console.log('Auto-parsing is disabled');
         return [];
@@ -71,7 +72,9 @@ export class GmailService {
         'UPI', 'NEFT', 'IMPS', 'RTGS', 'Credited', 'Debited', 'Paid', 'Received',
         'Transaction', 'Payment', 'Transfer', 'Salary', 'Refund', 'Cashback',
         // Card Networks
-        'Visa', 'Mastercard', 'RuPay', 'Amex', 'Diners'
+        'Visa', 'Mastercard', 'RuPay', 'Amex', 'Diners',
+        // Common transaction terms
+        'spent', 'charged', 'purchase', 'bill', 'invoice'
       ];
       const newKeywords = defaultKeywords.filter(k => !keywords.includes(k));
       if (newKeywords.length > 0) {
@@ -84,23 +87,27 @@ export class GmailService {
         return [];
       }
 
-      const keywordQuery = keywords.join(' OR ');
+      // Create a more comprehensive search query
+      const keywordQuery = keywords.map(k => `"${k}"`).join(' OR ');
+      const transactionTerms = 'debited OR credited OR "payment made" OR "amount paid" OR "transaction successful" OR "purchase made"';
 
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const afterDate = oneMonthAgo.toISOString().split('T')[0].replace(/-/g, '/');
 
-      const query = `(${keywordQuery}) after:${afterDate}`;
-      const searchUrl = `${this.GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(query)}&maxResults=10`;
+      const query = `(${keywordQuery}) AND (${transactionTerms}) after:${afterDate}`;
+      console.log('Gmail search query:', query);
+      
+      const searchUrl = `${this.GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`;
 
       const searchResponse = await fetch(searchUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      });
+      });      
       
       if (!searchResponse.ok) {
-        console.log('Search failed:', searchResponse.status);
+        console.log('Search failed:', searchResponse.status, await searchResponse.text());
         return [];
       }
 
@@ -118,7 +125,7 @@ export class GmailService {
       const allTransactions = await TransactionService.getAllTransactions();
 
       const transactions: ParsedTransaction[] = [];
-      for (const msg of searchData.messages.slice(0, 5)) {
+      for (const msg of searchData.messages.slice(0, 10)) {
         try {
           const messageUrl = `${this.GMAIL_API_BASE}/users/me/messages/${msg.id}`;
           const messageResponse = await fetch(messageUrl, {
@@ -211,19 +218,30 @@ export class GmailService {
       const subject = subjectHeader?.value || '';
       const combinedText = `${subject} ${fullMessage}`;
       
-      // Check if it's a transaction
-      const isTransaction = /\b(debited|credited|paid|received|spent|transaction|payment|upi|transfer|purchase)\b/i.test(combinedText);
-      if (!isTransaction) return null;
+      // Enhanced transaction detection patterns
+      const transactionPatterns = [
+        /\b(debited|credited|paid|received|spent|transaction|payment|upi|transfer|purchase|charged)\b/i,
+        /\b(rs\.?|inr|₹)\s*\d+/i,
+        /\d+\s*(?:rs\.?|inr|₹)/i,
+        /\bamount\s*:?\s*(?:rs\.?|inr|₹)?\s*\d+/i
+      ];
+      
+      const isTransaction = transactionPatterns.some(pattern => pattern.test(combinedText));
+      if (!isTransaction) {
+        console.log('Not a transaction email');
+        return null;
+      }
       
       let merchant = 'Unknown';
       let amount = '0.00';
       let paymentMethod = 'Unknown';
       
-      // Extract amount - multiple patterns
+      // Enhanced amount extraction patterns
       const amountPatterns = [
         /(?:rs\.?|inr|₹)\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-        /(?:amount|paid|debited|credited|spent)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
+        /(?:amount|paid|debited|credited|spent|charged)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
         /(\d+(?:,\d+)*(?:\.\d{2})?)\s*(?:rs\.?|inr|₹)/i,
+        /(?:total|sum)\s*:?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i
       ];
       
       for (const pattern of amountPatterns) {
@@ -234,34 +252,61 @@ export class GmailService {
         }
       }
       
-      // Extract merchant - multiple patterns
+      // Enhanced merchant extraction patterns
       const merchantPatterns = [
-        /(?:paid to|sent to|transferred to|at|merchant)\s*:?\s*([A-Z][A-Za-z0-9\s&.'-]+?)(?:\s+(?:on|via|using|through|for|\.|,|\n|$))/i,
-        /(?:to|from)\s+([A-Z][A-Za-z0-9\s&.'-]{3,30})(?:\s+(?:on|via|using|for|\.|,|\n|$))/i,
-        /(?:merchant|vendor|store)\s*:?\s*([A-Z][A-Za-z0-9\s&.'-]+)/i,
+        // UPI recipient patterns - look for @ptyes format
+        /to\s+([^@]+)@ptyes/i,
+        /to\s+([^@]+)@[a-z]+/i,
+        // Standard UPI patterns
+        /(?:to|credited to)\s+([A-Z][A-Za-z\s]+?)\s+on\s+\d/i,
+        /(?:paid|sent|transferred)\s+to\s+([A-Z][A-Za-z\s]+?)\s+(?:on|via|using|\d)/i,
+        // General transaction patterns
+        /(?:transaction\s+at|purchase\s+at|payment\s+to)\s+([A-Z][A-Za-z0-9\s&.'-]{3,30})(?:\s+(?:on|via|using|for|\.|,|\n|$))/i,
+        /(?:at|merchant)\s*:?\s*([A-Z][A-Za-z0-9\s&.'-]+?)(?:\s+(?:on|via|using|through|for|\.|,|\n|$))/i,
       ];
       
       for (const pattern of merchantPatterns) {
         const match = combinedText.match(pattern);
         if (match) {
-          merchant = match[1].trim()
+          let extractedMerchant = match[1].trim()
             .replace(/\s+/g, ' ')
             .replace(/[^A-Za-z0-9\s&.'-]/g, '')
             .substring(0, 30);
-          if (merchant.length >= 3) break;
+          
+          // Clean up UPI handles and convert to readable format
+          if (extractedMerchant.includes('ptyes') || extractedMerchant.includes('paytm')) {
+            extractedMerchant = extractedMerchant.replace(/ptyes|paytm.*$/i, '').trim();
+            // Convert format like 'paytmqr6tpcai' to readable name
+            extractedMerchant = extractedMerchant.replace(/paytmqr\w+/i, '').trim();
+          }
+          
+          if (extractedMerchant.length >= 3) {
+            merchant = extractedMerchant;
+            break;
+          }
         }
       }
       
-      // If still unknown, try to extract from sender
+      // If still unknown, try to extract from sender or subject
       if (merchant === 'Unknown' || merchant.length < 3) {
-        merchant = this.extractSenderName(fromHeader?.value || '');
+        const senderName = this.extractSenderName(fromHeader?.value || '');
+        if (senderName && senderName !== 'Unknown' && senderName.length >= 3) {
+          merchant = senderName;
+        } else {
+          // Try extracting from subject
+          const subjectMatch = subject.match(/([A-Z][A-Za-z0-9\s&.'-]{3,20})/i);
+          if (subjectMatch) {
+            merchant = subjectMatch[1].trim();
+          }
+        }
       }
       
-      // Extract payment method
+      // Enhanced payment method extraction
       const cardPatterns = [
         /(visa|mastercard|rupay|amex|diners)\s*(?:credit|debit)?\s*card\s*(?:ending|xx)?\s*(\d{4})/i,
         /card\s*(?:ending|xx)\s*(\d{4})/i,
-        /(upi|paytm|phonepe|gpay|google pay|amazon pay)/i,
+        /(upi|paytm|phonepe|gpay|google\s*pay|amazon\s*pay|mobikwik|freecharge)/i,
+        /(net\s*banking|neft|imps|rtgs)/i
       ];
       
       for (const pattern of cardPatterns) {
@@ -270,7 +315,7 @@ export class GmailService {
           if (match[2]) {
             paymentMethod = `${match[1]} Card ending ${match[2]}`;
           } else {
-            paymentMethod = match[1];
+            paymentMethod = match[1].replace(/\s+/g, ' ');
           }
           break;
         }
@@ -279,6 +324,8 @@ export class GmailService {
       const category = this.categorizeTransaction(merchant, combinedText);
       const emailDate = new Date(dateHeader?.value || Date.now());
       const timeAgo = this.getTimeAgo(emailDate);
+
+      console.log('Parsed transaction:', { merchant, amount, category, paymentMethod });
 
       return {
         id: messageData.id,
@@ -310,8 +357,19 @@ export class GmailService {
   }
 
   private static extractSenderName(from: string): string {
-    const match = from.match(/^([^<]+)/);
-    return match ? match[1].trim() : from;
+    // Extract sender name from email header
+    const nameMatch = from.match(/^([^<]+)/);
+    let name = nameMatch ? nameMatch[1].trim() : from;
+    
+    // Clean up common bank/service names
+    name = name.replace(/\b(bank|ltd|limited|pvt|private|services|alerts?)\b/gi, '').trim();
+    
+    // If it's just an email, extract the part before @
+    if (name.includes('@') && !name.includes(' ')) {
+      name = name.split('@')[0];
+    }
+    
+    return name.length >= 3 ? name : 'Unknown';
   }
 
   private static categorizeTransaction(merchant: string, content: string): string {

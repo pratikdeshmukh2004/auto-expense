@@ -3,16 +3,13 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
+import { StorageKeys } from '../constants/StorageKeys';
 
 export class AuthService {
-  private static readonly USER_TOKEN_KEY = 'user_token';
-  private static readonly USER_MPIN_KEY = 'user_mpin';
-  private static readonly USER_GUEST_KEY = 'user_is_guest';
-
   static async isLoggedIn(): Promise<boolean> {
     try {
-      const token = await SecureStore.getItemAsync(this.USER_TOKEN_KEY);
-      const isGuest = await SecureStore.getItemAsync(this.USER_GUEST_KEY);
+      const token = await SecureStore.getItemAsync(StorageKeys.USER_TOKEN);
+      const isGuest = await SecureStore.getItemAsync(StorageKeys.USER_GUEST);
       return !!token || !!isGuest;
     } catch {
       return false;
@@ -21,7 +18,7 @@ export class AuthService {
 
   static async loginAsGuest(): Promise<boolean> {
     try {
-      await SecureStore.setItemAsync(this.USER_GUEST_KEY, 'true');
+      await SecureStore.setItemAsync(StorageKeys.USER_GUEST, 'true');
       return true;
     } catch {
       return false;
@@ -29,14 +26,14 @@ export class AuthService {
   }
 
   static async isGuest(): Promise<boolean> {
-    const isGuest = await SecureStore.getItemAsync(this.USER_GUEST_KEY);
+    const isGuest = await SecureStore.getItemAsync(StorageKeys.USER_GUEST);
     return isGuest === 'true';
   }
 
   static async login(email: string, password: string): Promise<boolean> {
     // Simulate login - in real app, call your API
     if (email && password) {
-      await SecureStore.setItemAsync(this.USER_TOKEN_KEY, 'dummy_token');
+      await SecureStore.setItemAsync(StorageKeys.USER_TOKEN, 'dummy_token');
       return true;
     }
     return false;
@@ -57,12 +54,12 @@ export class AuthService {
       const userInfo = await GoogleSignin.signIn();
       
       if (userInfo.data?.idToken) {
-        await SecureStore.setItemAsync(this.USER_TOKEN_KEY, userInfo.data.idToken);
+        await SecureStore.setItemAsync(StorageKeys.USER_TOKEN, userInfo.data.idToken);
         // Store user info for later retrieval
         if (userInfo.data.user) {
-          await SecureStore.setItemAsync('user_name', userInfo.data.user.name || '');
-          await SecureStore.setItemAsync('user_email', userInfo.data.user.email || '');
-          await SecureStore.setItemAsync('user_photo', userInfo.data.user.photo || '');
+          await SecureStore.setItemAsync(StorageKeys.USER_NAME, userInfo.data.user.name || '');
+          await SecureStore.setItemAsync(StorageKeys.USER_EMAIL, userInfo.data.user.email || '');
+          await SecureStore.setItemAsync(StorageKeys.USER_PHOTO, userInfo.data.user.photo || '');
         }
         return true;
       }
@@ -89,47 +86,54 @@ export class AuthService {
   }
 
   static async logout(): Promise<void> {
-    await SecureStore.deleteItemAsync(this.USER_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(this.USER_GUEST_KEY);
-    await SecureStore.deleteItemAsync('user_name');
-    await SecureStore.deleteItemAsync('user_email');
-    await SecureStore.deleteItemAsync('user_photo');
+    await SecureStore.deleteItemAsync(StorageKeys.USER_TOKEN);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_GUEST);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_NAME);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_EMAIL);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_PHOTO);
   }
 
   static async deleteAccount(): Promise<void> {
     await this.logout();
     
     // Clear Auth & Security
-    await SecureStore.deleteItemAsync(this.USER_MPIN_KEY);
-    await SecureStore.deleteItemAsync('biometric_enabled');
+    await SecureStore.deleteItemAsync(StorageKeys.USER_MPIN);
+    await SecureStore.deleteItemAsync(StorageKeys.BIOMETRIC_ENABLED);
     
     // Clear User Data
-    await SecureStore.deleteItemAsync('app_transactions');
-    await SecureStore.deleteItemAsync('user_categories');
-    await SecureStore.deleteItemAsync('user_payment_methods');
-    await SecureStore.deleteItemAsync('user_name');
-    await SecureStore.deleteItemAsync('user_email');
-    await SecureStore.deleteItemAsync('user_photo');
+    await SecureStore.deleteItemAsync(StorageKeys.TRANSACTIONS);
+    await SecureStore.deleteItemAsync(StorageKeys.CATEGORIES);
+    await SecureStore.deleteItemAsync(StorageKeys.PAYMENT_METHODS);
+    await SecureStore.deleteItemAsync(StorageKeys.BANK_KEYWORDS);
+    await SecureStore.deleteItemAsync(StorageKeys.STORAGE_TYPE);
+    await SecureStore.deleteItemAsync(StorageKeys.PARSED_TRANSACTIONS);
+    await SecureStore.deleteItemAsync(StorageKeys.APPROVED_SENDERS);
+    await SecureStore.deleteItemAsync(StorageKeys.LAST_EMAIL_SYNC);
+    await SecureStore.deleteItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
   }
 
   static async getMpin(): Promise<string | null> {
-    return await SecureStore.getItemAsync(this.USER_MPIN_KEY);
+    return await SecureStore.getItemAsync(StorageKeys.USER_MPIN);
   }
 
   static async setMpin(mpin: string): Promise<void> {
-    await SecureStore.setItemAsync(this.USER_MPIN_KEY, mpin);
+    await SecureStore.setItemAsync(StorageKeys.USER_MPIN, mpin);
   }
 
   static async getUserName(): Promise<string | null> {
-    return await SecureStore.getItemAsync('user_name');
+    return await SecureStore.getItemAsync(StorageKeys.USER_NAME);
   }
 
   static async getUserEmail(): Promise<string | null> {
-    return await SecureStore.getItemAsync('user_email');
+    return await SecureStore.getItemAsync(StorageKeys.USER_EMAIL);
   }
 
   static async getUserPhoto(): Promise<string | null> {
-    return await SecureStore.getItemAsync('user_photo');
+    return await SecureStore.getItemAsync(StorageKeys.USER_PHOTO);
+  }
+
+  static async getStorageType(): Promise<string | null> {
+    return await SecureStore.getItemAsync(StorageKeys.STORAGE_TYPE);
   }
 }
 

@@ -1,25 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PaymentMethodModal from '../../components/drawers/PaymentMethodModal';
-import { PaymentMethodService, PaymentMethod } from '../../services/PaymentMethodService';
+import { PaymentMethod } from '../../services/PaymentMethodService';
+import { usePaymentMethods } from '../../hooks/useQueries';
 
 export default function PaymentMethodsScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  useEffect(() => {
-    loadPaymentMethods();
-  }, []);
-
-  const loadPaymentMethods = async () => {
-    const methods = await PaymentMethodService.getPaymentMethods();
-    setPaymentMethods(methods);
-  };
+  // TanStack Query hook
+  const { data: paymentMethods = [] } = usePaymentMethods();
 
   const addPaymentMethod = () => {
     setSelectedPaymentMethod(null);
@@ -34,7 +28,7 @@ export default function PaymentMethodsScreen() {
   };
 
   const handleSave = () => {
-    loadPaymentMethods();
+    // Data will be automatically refetched by TanStack Query
   };
 
   const getTypeLabel = (type: string) => {

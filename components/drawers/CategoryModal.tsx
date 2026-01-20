@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
-import { CategoryService, Category } from '../../services/CategoryService';
+import { Category } from '../../services/CategoryService';
+import { useAddCategory, useUpdateCategory, useDeleteCategory } from '../../hooks/useQueries';
 
 interface CategoryModalProps {
   visible: boolean;
@@ -16,6 +17,11 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
   const [description, setDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState('#EA2831');
   const [selectedIcon, setSelectedIcon] = useState('car');
+  
+  // TanStack Query mutations
+  const addCategoryMutation = useAddCategory();
+  const updateCategoryMutation = useUpdateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
   
   // Reset state when modal opens
   React.useEffect(() => {
@@ -63,22 +69,33 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
     
     try {
       if (isAddMode) {
-        await CategoryService.addCategory({
+        addCategoryMutation.mutate({
           name: name.trim(),
           icon: selectedIcon,
           color: selectedColor,
           description: description.trim() || `${name.trim()} expenses`
+        }, {
+          onSuccess: () => {
+            onSave();
+            onClose();
+          }
         });
       } else if (category) {
-        await CategoryService.updateCategory(category.id, {
-          name: name.trim(),
-          icon: selectedIcon,
-          color: selectedColor,
-          description: description.trim() || category.description
+        updateCategoryMutation.mutate({
+          id: category.id,
+          updates: {
+            name: name.trim(),
+            icon: selectedIcon,
+            color: selectedColor,
+            description: description.trim() || category.description
+          }
+        }, {
+          onSuccess: () => {
+            onSave();
+            onClose();
+          }
         });
       }
-      onSave();
-      onClose();
     } catch (error) {
       console.error('Error saving category:', error);
     }
@@ -107,9 +124,15 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
             style: 'destructive',
             onPress: async () => {
               try {
-                await CategoryService.deleteCategory(category.id);
-                onSave();
-                onClose();
+                deleteCategoryMutation.mutate(category.id, {
+                  onSuccess: () => {
+                    onSave();
+                    onClose();
+                  },
+                  onError: () => {
+                    Alert.alert('Error', 'Failed to delete category. Please try again.');
+                  }
+                });
               } catch (error) {
                 console.error('Error deleting category:', error);
                 Alert.alert('Error', 'Failed to delete category. Please try again.');
