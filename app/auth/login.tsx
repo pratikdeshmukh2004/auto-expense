@@ -10,30 +10,57 @@ import { AuthService } from '../../services/AuthService';
 
 export default function LoginScreen() {
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const handleLogin = async () => {
-    const success = await AuthService.signInWithGoogle();
+    setError('');
+    setLoading(true);
     
-    if (success) {
-      const hasMpin = await AuthService.getMpin();
+    try {
+      const success = await AuthService.signInWithGoogle();
       
-      if (!hasMpin) {
-        router.replace('/auth/generate-mpin');
+      if (success) {
+        const hasMpin = await AuthService.getMpin();
+        
+        if (!hasMpin) {
+          router.replace('/auth/generate-mpin');
+        } else {
+          router.replace('/auth/mpin');
+        }
       } else {
-        router.replace('/auth/mpin');
+        setError('Google login failed. Please try again.');
       }
+    } catch (err: any) {
+      setError(err?.message || 'An error occurred during login. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGuestLogin = async () => {
-    const success = await AuthService.loginAsGuest();
-    if (success) {
-      const hasMpin = await AuthService.getMpin();
-      
-      if (!hasMpin) {
-        router.replace('/auth/generate-mpin');
+    setError('');
+    setLoading(true);
+    
+    try {
+      const success = await AuthService.loginAsGuest();
+      if (success) {
+        const hasMpin = await AuthService.getMpin();
+        
+        if (!hasMpin) {
+          router.replace('/auth/generate-mpin');
+        } else {
+          router.replace('/auth/mpin');
+        }
       } else {
-        router.replace('/auth/mpin');
+        setError('Guest login failed. Please try again.');
       }
+    } catch (err: any) {
+      setError(err?.message || 'An error occurred during login. Please try again.');
+      console.error('Guest login error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,18 +87,36 @@ export default function LoginScreen() {
           Track your spending automatically.
         </Text>
 
+        {/* Error Message */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color="#EA2831" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
         {/* Buttons */}
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.googleButton} activeOpacity={0.8} onPress={handleLogin}>
+          <TouchableOpacity 
+            style={[styles.googleButton, loading && styles.buttonDisabled]} 
+            activeOpacity={0.8} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
             <GoogleIcon />
             <Text style={styles.googleButtonText}>
-              Continue with Google
+              {loading ? 'Signing in...' : 'Continue with Google'}
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.guestButton} activeOpacity={0.8} onPress={handleGuestLogin}>
+          <TouchableOpacity 
+            style={[styles.guestButton, loading && styles.buttonDisabled]} 
+            activeOpacity={0.8} 
+            onPress={handleGuestLogin}
+            disabled={loading}
+          >
             <Text style={styles.guestButtonText}>
-              Continue as Guest
+              {loading ? 'Signing in...' : 'Continue as Guest'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -193,5 +238,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#94A3B8',
     letterSpacing: 1.2,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorText: {
+    color: '#EA2831',
+    fontSize: 14,
+    flex: 1,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });

@@ -49,6 +49,7 @@ export class AuthService {
         ],
         webClientId: '801866874360-96td9gafiulbleuhoh73kbniin47csj0.apps.googleusercontent.com',
         iosClientId: '801866874360-m23kvuibisrtk6i36gq3ghveieu6fd94.apps.googleusercontent.com',
+        offlineAccess: true,
       });
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
@@ -65,23 +66,20 @@ export class AuthService {
       }
       return false;
     } catch (error) {
-      console.log(error, 'error...')
+      console.error('Google Sign-In Error:', error);
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:
-            console.log('User cancelled the login flow');
-            break;
+            throw new Error('Sign in cancelled');
           case statusCodes.IN_PROGRESS:
-            console.log('Sign in is in progress already');
-            break;
+            throw new Error('Sign in already in progress');
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            console.log('Play services not available or outdated');
-            break;
+            throw new Error('Play Services not available');
           default:
-            console.error('Some other error happened', error);
+            throw new Error(error.code || 'Google Sign-In failed');
         }
       }
-      return false;
+      throw error;
     }
   }
 
