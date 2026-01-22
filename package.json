@@ -18,12 +18,12 @@
     "build:ios:development": "eas build --platform ios --profile development",
     "build:android:local": "cd android && ./gradlew assembleRelease && cd ..",
     "apk": "npx expo prebuild --clean --platform android && cd android && ./gradlew assembleRelease && cd ..",
-    "apk:custom": "./build-apk.sh",
-    "ipa:custom": "./build-ipa.sh",
+    "apk:custom": "bash scripts/build-apk.sh",
+    "ipa:custom": "bash scripts/build-ipa.sh",
     "build:ios:local": "npx expo run:ios --configuration Release",
     "prebuild": "npx expo prebuild",
     "prebuild:clean": "npx expo prebuild --clean",
-    "sha1": "./get-sha1.sh"
+    "sha1": "bash scripts/get-sha1.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
