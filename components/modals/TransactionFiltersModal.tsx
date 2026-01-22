@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, PanResponder, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useCategories, usePaymentMethods, useTransactions } from '../../hooks/useQueries';
-import Shimmer from '../Shimmer';
+import { useCategories, usePaymentMethods, useTransactions } from '@/hooks/useQueries';
+import Shimmer from '../animations/Shimmer';
 
 interface TransactionFiltersModalProps {
   visible: boolean;

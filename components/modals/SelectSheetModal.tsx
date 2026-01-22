@@ -3,8 +3,8 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { StorageKeys } from '../constants/StorageKeys';
-import GoogleSheetsIcon from './GoogleSheetsIcon';
+import { StorageKeys } from '@/constants/StorageKeys';
+import GoogleSheetsIcon from '../icons/GoogleSheetsIcon';
 
 interface Sheet {
   id: string;
@@ -36,14 +36,12 @@ export default function SelectSheetModal({ visible, onClose, onConfirm }: Select
     try {
       const userInfo = await GoogleSignin.getCurrentUser();
       if (!userInfo) {
-        console.error('User not signed in');
         return;
       }
 
       const tokens = await GoogleSignin.getTokens();
       
       if (!tokens.accessToken) {
-        console.error('No access token available');
         return;
       }
 
@@ -57,7 +55,6 @@ export default function SelectSheetModal({ visible, onClose, onConfirm }: Select
       );
 
       const data = await response.json();
-      console.log('Sheets API response:', data);
       
       if (data.files && data.files.length > 0) {
         const formattedSheets = data.files.map((file: any) => ({
@@ -71,7 +68,6 @@ export default function SelectSheetModal({ visible, onClose, onConfirm }: Select
         }
       }
     } catch (error) {
-      console.error('Error fetching sheets:', error);
     } finally {
       setLoading(false);
     }
@@ -164,7 +160,6 @@ export default function SelectSheetModal({ visible, onClose, onConfirm }: Select
       
       return hasValidConfig;
     } catch (error) {
-      console.error('Error validating sheet format:', error);
       return false;
     }
   };

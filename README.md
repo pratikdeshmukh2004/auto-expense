@@ -67,6 +67,68 @@ A smart expense tracking app built with React Native and Expo that automatically
    - Press `i` for iOS simulator
    - Press `a` for Android emulator
 
+## 📦 Build Commands
+
+### Local Build (Using Scripts)
+
+**Build Android APK:**
+```bash
+bash scripts/build-apk.sh
+```
+
+**Build iOS IPA:**
+```bash
+bash scripts/build-ipa.sh
+```
+
+**Get SHA-1 Certificate:**
+```bash
+bash scripts/get-sha1.sh
+```
+
+### EAS Build (Expo Application Services)
+
+**Setup EAS:**
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure
+```
+
+**Build Android APK:**
+```bash
+# Development build
+eas build --platform android --profile development
+
+# Preview build (APK)
+eas build --platform android --profile preview
+
+# Production build (AAB for Play Store)
+eas build --platform android --profile production
+```
+
+**Build iOS IPA:**
+```bash
+# Development build
+eas build --platform ios --profile development
+
+# Preview build
+eas build --platform ios --profile preview
+
+# Production build (for App Store)
+eas build --platform ios --profile production
+```
+
+**Build for Both Platforms:**
+```bash
+eas build --platform all --profile preview
+```
+
+**Check Build Status:**
+```bash
+eas build:list
+```
+
 ## 🏗️ Project Structure
 
 ```

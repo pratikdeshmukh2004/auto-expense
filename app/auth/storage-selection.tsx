@@ -4,8 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StatusBar, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AnimatedCoins from '../../components/AnimatedCoins';
-import SelectSheetModal from '../../components/SelectSheetModal';
+import { AnimatedCoins } from '../../components/animations';
+import { SelectSheetModal } from '../../components/modals';
 import { StorageKeys } from '../../constants/StorageKeys';
 import { AuthService } from '../../services/AuthService';
 import { GoogleSheetsService } from '../../services/GoogleSheetsService';
@@ -261,7 +261,6 @@ export default function StorageSelectionScreen() {
         visible={showSheetModal}
         onClose={() => setShowSheetModal(false)}
         onConfirm={(sheetId, sheetName) => {
-          console.log('Selected sheet:', sheetId);
           setSelectedSheetName(sheetName);
           setSelectedStorage('existing');
         }}

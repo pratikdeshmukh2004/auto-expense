@@ -7,7 +7,7 @@ import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
-import BottomNavigation from "../components/BottomNavigation";
+import { BottomNavigation } from "../components/layout";
 import { QueryProvider } from "../providers/QueryProvider";
 import { AuthService } from "../services/AuthService";
 

@@ -26,7 +26,6 @@ export class TransactionService {
           timestamp: new Date(t.timestamp || t.date)
         }));
     } catch (error) {
-      console.error('Error getting transactions:', error);
       return [];
     }
   }
@@ -39,7 +38,6 @@ export class TransactionService {
         timestamp: new Date(t.timestamp || t.date)
       }));
     } catch (error) {
-      console.error('Error getting all transactions:', error);
       return [];
     }
   }
@@ -54,7 +52,6 @@ export class TransactionService {
           timestamp: new Date(t.timestamp || t.date)
         }));
     } catch (error) {
-      console.error('Error getting rejected transactions:', error);
       return [];
     }
   }
@@ -70,7 +67,6 @@ export class TransactionService {
       await StorageService.addTransaction(newTransaction);
       return newTransaction;
     } catch (error) {
-      console.error('Error adding transaction:', error);
       throw error;
     }
   }
@@ -89,7 +85,6 @@ export class TransactionService {
         await StorageService.saveTransactions(transactions);
       }
     } catch (error) {
-      console.error('Error updating transaction:', error);
       throw error;
     }
   }
@@ -98,7 +93,6 @@ export class TransactionService {
     try {
       await StorageService.deleteTransaction(id);
     } catch (error) {
-      console.error('Error deleting transaction:', error);
       throw error;
     }
   }
@@ -156,7 +150,6 @@ export class TransactionService {
       const filtered = transactions.filter((t: any) => t.sender !== sender);
       await StorageService.saveTransactions(filtered);
     } catch (error) {
-      console.error('Error deleting transactions by sender:', error);
       throw error;
     }
   }

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
-import { Category } from '../../services/CategoryService';
-import { useAddCategory, useUpdateCategory, useDeleteCategory } from '../../hooks/useQueries';
+import { Category } from '@/services/CategoryService';
+import { useAddCategory, useUpdateCategory, useDeleteCategory } from '@/hooks/useQueries';
 
 interface CategoryModalProps {
   visible: boolean;
@@ -97,7 +97,6 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
         });
       }
     } catch (error) {
-      console.error('Error saving category:', error);
     }
   };
 
@@ -134,7 +133,6 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
                   }
                 });
               } catch (error) {
-                console.error('Error deleting category:', error);
                 Alert.alert('Error', 'Failed to delete category. Please try again.');
               }
             }

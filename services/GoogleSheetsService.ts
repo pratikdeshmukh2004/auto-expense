@@ -64,7 +64,6 @@ export class GoogleSheetsService {
         spreadsheetUrl: spreadsheet.spreadsheetUrl,
       };
     } catch (error) {
-      console.error("Error creating Auto Expense sheet:", error);
       return null;
     }
   }
@@ -357,7 +356,6 @@ export class GoogleSheetsService {
     try {
       await this.batchUpdate(spreadsheetId, accessToken, tableRequests);
     } catch (error) {
-      console.log("Table creation not supported, using standard formatting");
     }
   }
 
@@ -419,7 +417,6 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error("Error adding transaction to sheet:", error);
       return false;
     }
   }
@@ -463,7 +460,6 @@ export class GoogleSheetsService {
         sender: '',
       }));
     } catch (error) {
-      console.error("Error getting transactions from sheet:", error);
       return [];
     }
   }
@@ -503,7 +499,6 @@ export class GoogleSheetsService {
 
       return response.ok;
     } catch (error) {
-      console.error("Error deleting transaction row:", error);
       return false;
     }
   }
@@ -517,13 +512,11 @@ export class GoogleSheetsService {
       const rowIndex = transactions.findIndex(t => t.id === transactionId);
       
       if (rowIndex === -1) {
-        console.log('Transaction not found for deletion');
         return false;
       }
 
       return await this.deleteTransactionRow(rowIndex);
     } catch (error) {
-      console.error("Error deleting transaction by ID:", error);
       return false;
     }
   }
@@ -557,7 +550,6 @@ export class GoogleSheetsService {
 
       return response.ok;
     } catch (error) {
-      console.error("Error saving transactions to sheet:", error);
       return false;
     }
   }
@@ -568,16 +560,13 @@ export class GoogleSheetsService {
   static async getCategories(): Promise<any[]> {
     try {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
-      console.log('GoogleSheetsService.getCategories - spreadsheetId:', spreadsheetId);
       if (!spreadsheetId) {
-        console.log('GoogleSheetsService.getCategories - no spreadsheet ID');
         return [];
       }
 
       await GoogleSignin.signInSilently();
       const tokens = await GoogleSignin.getTokens();
       const accessToken = tokens.accessToken;
-      console.log('GoogleSheetsService.getCategories - got access token');
 
       const response = await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!A2:E`,
@@ -588,15 +577,12 @@ export class GoogleSheetsService {
         }
       );
 
-      console.log('GoogleSheetsService.getCategories - response status:', response.status);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('GoogleSheetsService.getCategories - response data:', data);
       const rows = data.values || [];
-      console.log('GoogleSheetsService.getCategories - rows count:', rows.length);
 
       const categories = rows.map((row: any[]) => ({
         id: row[0] || '',
@@ -606,10 +592,8 @@ export class GoogleSheetsService {
         description: row[4] || '',
       }));
       
-      console.log('GoogleSheetsService.getCategories - returning categories:', categories.length);
       return categories;
     } catch (error) {
-      console.error("Error getting categories from sheet:", error);
       return [];
     }
   }
@@ -644,7 +628,6 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error("Error saving categories to sheet:", error);
       return false;
     }
   }
@@ -688,7 +671,6 @@ export class GoogleSheetsService {
         last4: row[5] || '',
       }));
     } catch (error) {
-      console.error("Error getting payment methods from sheet:", error);
       return [];
     }
   }
@@ -723,7 +705,6 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error("Error saving payment methods to sheet:", error);
       return false;
     }
   }
@@ -758,7 +739,6 @@ export class GoogleSheetsService {
         category: row[2] || '',
       }));
     } catch (error) {
-      console.error("Error getting keywords from sheet:", error);
       return [];
     }
   }
@@ -793,7 +773,6 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error("Error saving keywords to sheet:", error);
       return false;
     }
   }
@@ -827,7 +806,6 @@ export class GoogleSheetsService {
         paymentMethod: row[1] || '',
       }));
     } catch (error) {
-      console.error("Error getting approved senders from sheet:", error);
       return [];
     }
   }
@@ -862,7 +840,6 @@ export class GoogleSheetsService {
 
       return true;
     } catch (error) {
-      console.error("Error saving approved senders to sheet:", error);
       return false;
     }
   }

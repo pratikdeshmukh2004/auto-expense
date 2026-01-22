@@ -15,7 +15,6 @@ export class PaymentMethodService {
     try {
       return await StorageService.getPaymentMethods();
     } catch (error) {
-      console.error('Error getting payment methods:', error);
       return [];
     }
   }
@@ -30,7 +29,6 @@ export class PaymentMethodService {
       methods.push(newMethod);
       await StorageService.savePaymentMethods(methods);
     } catch (error) {
-      console.error('Error adding payment method:', error);
     }
   }
 
@@ -43,7 +41,6 @@ export class PaymentMethodService {
         await StorageService.savePaymentMethods(methods);
       }
     } catch (error) {
-      console.error('Error updating payment method:', error);
     }
   }
 
@@ -53,7 +50,6 @@ export class PaymentMethodService {
       const filteredMethods = methods.filter(method => method.id !== id);
       await StorageService.savePaymentMethods(filteredMethods);
     } catch (error) {
-      console.error('Error deleting payment method:', error);
       throw error;
     }
   }

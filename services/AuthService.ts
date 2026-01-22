@@ -66,7 +66,6 @@ export class AuthService {
       }
       return false;
     } catch (error) {
-      console.error('Google Sign-In Error:', error);
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:

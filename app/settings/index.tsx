@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SettingsBottomSheet from '../../components/SettingsBottomSheet';
+import SettingsBottomSheet from '../../components/modals/SettingsBottomSheet';
 import { StorageKeys } from '../../constants/StorageKeys';
 import { AuthService } from '../../services/AuthService';
 import { useCategories, usePaymentMethods } from '../../hooks/useQueries';
@@ -25,14 +25,6 @@ export default function SettingsIndex() {
   // TanStack Query hooks
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
-  
-  // Debug logging
-  console.log('Settings data:', { 
-    categoriesCount: categories.length, 
-    paymentMethodsCount: paymentMethods.length,
-    categoriesLoading,
-    paymentMethodsLoading
-  });
 
   useEffect(() => {
     loadBiometricSetting();
@@ -460,7 +452,7 @@ export default function SettingsIndex() {
                 </View>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Manage Categories</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{categories.length} categories configured</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{categoriesLoading ? 'Loading...' : `${categories.length} categories configured`}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -489,7 +481,7 @@ export default function SettingsIndex() {
                 </View>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Payment Methods</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{paymentMethods.length} methods configured</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{paymentMethodsLoading ? 'Loading...' : `${paymentMethods.length} methods configured`}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -870,6 +862,52 @@ export default function SettingsIndex() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
                     <Ionicons name="checkmark-circle" size={12} color="#10b981" />
                     <Text style={{ fontSize: 10, color: '#10b981', fontWeight: '500' }}>READ ONLY • NO SENDING</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="mail-open" size={20} color="#3b82f6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>Email Access</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18 }}>Read transaction emails from banks to automatically track online payments and subscriptions</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <Ionicons name="checkmark-circle" size={12} color="#10b981" />
+                    <Text style={{ fontSize: 10, color: '#10b981', fontWeight: '500' }}>READ ONLY • SECURE</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="document-text" size={20} color="#10b981" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 }}>Google Sheets Access</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 18 }}>Sync transactions to Google Sheets for backup and advanced analysis</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <Ionicons name="cloud-upload" size={12} color="#10b981" />
+                    <Text style={{ fontSize: 10, color: '#10b981', fontWeight: '500' }}>OPTIONAL • ENCRYPTED</Text>
                   </View>
                 </View>
               </View>

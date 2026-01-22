@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PaymentMethodModal from '../../components/drawers/PaymentMethodModal';
+import { PaymentMethodModal } from '../../components/modals';
 import { PaymentMethod } from '../../services/PaymentMethodService';
 import { usePaymentMethods } from '../../hooks/useQueries';
 

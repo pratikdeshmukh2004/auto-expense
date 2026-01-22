@@ -19,6 +19,7 @@
     "build:android:local": "cd android && ./gradlew assembleRelease && cd ..",
     "apk": "npx expo prebuild --clean --platform android && cd android && ./gradlew assembleRelease && cd ..",
     "apk:custom": "./build-apk.sh",
+    "ipa:custom": "./build-ipa.sh",
     "build:ios:local": "npx expo run:ios --configuration Release",
     "prebuild": "npx expo prebuild",
     "prebuild:clean": "npx expo prebuild --clean",

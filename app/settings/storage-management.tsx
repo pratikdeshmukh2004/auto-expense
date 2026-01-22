@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SelectSheetModal from '../../components/SelectSheetModal';
+import SelectSheetModal from '../../components/modals/SelectSheetModal';
 import { StorageKeys } from '../../constants/StorageKeys';
 
 export default function StorageManagementScreen() {

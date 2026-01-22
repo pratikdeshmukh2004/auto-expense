@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CategoryModal from '../../components/drawers/CategoryModal';
+import { CategoryModal } from '../../components/modals';
 import { Category } from '../../services/CategoryService';
 import { useCategories } from '../../hooks/useQueries';
 

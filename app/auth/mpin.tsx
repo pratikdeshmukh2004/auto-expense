@@ -42,8 +42,10 @@ export default function MPINScreen() {
       
       if (biometricSetting === 'true') {
         setBiometricEnabled(true);
-        // Only auto authenticate if we're sure biometric is available
-        // Don't auto-trigger if there might be detection issues
+        // Auto-trigger biometric authentication
+        setTimeout(() => {
+          handleBiometricAuth();
+        }, 500);
       }
     } else {
       // Set default type based on platform even if not available

@@ -10,14 +10,10 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AnimatedBackground from "../../components/AnimatedBackground";
-import CategoryBreakdown from "../../components/CategoryBreakdown";
-import TransactionApprovalModal from "../../components/drawers/TransactionApprovalModal";
-import TransactionModal from "../../components/drawers/TransactionModal";
-import PaymentMethods from "../../components/PaymentMethods";
-import Shimmer from "../../components/Shimmer";
-import SpendingTrends from "../../components/SpendingTrends";
-import TransactionCard from "../../components/TransactionCard";
+import { AnimatedBackground } from "../../components/animations";
+import { CategoryBreakdown, PaymentMethods, SpendingTrends, TransactionCard } from "../../components/features";
+import { TransactionApprovalModal, TransactionModal } from "../../components/modals";
+import { Shimmer } from "../../components/animations";
 import {
   useAddTransaction,
   useCategories,
@@ -112,15 +108,6 @@ export default function DashboardIndex() {
     useIncomeByCategory();
   const { data: categories = [], isLoading: categoriesLoading } =
     useCategories();
-
-  // Debug logging
-  console.log("Dashboard data:", {
-    transactionsCount: transactions.length,
-    totalIncome,
-    totalExpenses,
-    incomeLoading,
-    expensesLoading,
-  });
 
   // Mutations
   const addTransactionMutation = useAddTransaction();
@@ -262,17 +249,22 @@ export default function DashboardIndex() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const { GmailService } = await import("../../services/GmailService");
-      await GmailService.fetchTransactionEmails();
       const SecureStore = await import("expo-secure-store");
-      await SecureStore.setItemAsync(
-        "last_email_sync",
-        new Date().toISOString(),
-      );
+      const lastSync = await SecureStore.getItemAsync("last_email_sync");
+      
+      // Fetch emails in background without waiting
+      const { GmailService } = await import("../../services/GmailService");
+      GmailService.fetchTransactionEmails(lastSync || undefined).then(async () => {
+        await SecureStore.setItemAsync(
+          "last_email_sync",
+          new Date().toISOString(),
+        );
+      }).catch((error) => {
+      });
     } catch (error) {
-      console.log("Error fetching Gmail transactions:", error);
     }
-    // Data will be automatically refetched by TanStack Query
+    // Immediately refresh data from sheet/local storage
+    await queryClient.invalidateQueries();
     await loadUserInfo();
     setRefreshing(false);
   };
@@ -322,7 +314,6 @@ export default function DashboardIndex() {
     return { incomeChange, expenseChange };
   };
 
-  console.log(categoryBreakdown, incomeBreakdown, "income.......");
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f6f6" }}>

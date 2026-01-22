@@ -3,10 +3,9 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import TransactionCard from '../../components/TransactionCard';
-import Shimmer from '../../components/Shimmer';
-import TransactionFiltersModal from '../../components/drawers/TransactionFiltersModal';
-import TransactionModal from '../../components/drawers/TransactionModal';
+import { TransactionCard } from '../../components/features';
+import { Shimmer } from '../../components/animations';
+import { TransactionFiltersModal, TransactionModal } from '../../components/modals';
 import { Transaction } from '../../services/TransactionService';
 import { getRelativeTime } from '../../utils/dateUtils';
 import { useCategories, usePaymentMethods, useTransactions, useDeleteTransaction, useAddTransaction } from '../../hooks/useQueries';
@@ -272,7 +271,6 @@ export default function TransactionsIndex() {
       setBulkEditCategory(undefined);
       setBulkEditPaymentMethod(undefined);
     } catch (error) {
-      console.error('Error updating transactions:', error);
     }
   };
   
@@ -556,7 +554,7 @@ export default function TransactionsIndex() {
           </View>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 8, paddingBottom: 16 }}>
             {/* Type filters */}
             {[
               { name: 'Income', icon: 'arrow-down' },

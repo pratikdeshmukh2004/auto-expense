@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from 'expo-secure-store';
-import TransactionModal from '../../components/drawers/TransactionModal';
+import { TransactionModal } from '../../components/modals';
 import { StorageKeys } from '../../constants/StorageKeys';
 import { AuthService } from "../../services/AuthService";
 import { GmailService } from "../../services/GmailService";
@@ -129,7 +129,6 @@ export default function SmartParsing() {
       await SecureStore.setItemAsync(StorageKeys.LAST_EMAIL_SYNC, new Date().toISOString());
       await loadLastSyncTime();
     } catch (error) {
-      console.error("Error loading transaction emails:", error);
     } finally {
       setLoadingMessages(false);
     }
@@ -157,7 +156,6 @@ export default function SmartParsing() {
 
   const loadRejectedTransactions = async () => {
     const rejected = await TransactionService.getRejectedTransactions();
-    console.log('Rejected transactions:', rejected);
     const formatted = rejected.map((t) => ({
       id: t.id,
       sender: t.notes || 'Transaction',
@@ -169,7 +167,6 @@ export default function SmartParsing() {
       date: t.date,
       time: new Date(t.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     }));
-    console.log('Formatted rejected:', formatted);
     setRejectedTransactions(formatted);
   };
 

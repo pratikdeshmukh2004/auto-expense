@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { PaymentMethod, PaymentMethodService } from '../../services/PaymentMethodService';
-import { Transaction, TransactionService } from '../../services/TransactionService';
-import Shimmer from '../Shimmer';
-import { useAddTransaction, useUpdateTransaction, useCategories, usePaymentMethods } from '../../hooks/useQueries';
+import { PaymentMethod, PaymentMethodService } from '@/services/PaymentMethodService';
+import { Transaction, TransactionService } from '@/services/TransactionService';
+import Shimmer from '../animations/Shimmer';
+import { useAddTransaction, useUpdateTransaction, useCategories, usePaymentMethods, useTransactions } from '@/hooks/useQueries';
 import CategoryModal from './CategoryModal';
 import DateTimePickerModal from './DateTimePickerModal';
 import PaymentMethodModal from './PaymentMethodModal';
@@ -44,11 +44,31 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
   // TanStack Query hooks
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = usePaymentMethods();
+  const { data: transactions = [] } = useTransactions();
   const addTransactionMutation = useAddTransaction();
   const updateTransactionMutation = useUpdateTransaction();
 
   const isEditMode = !!transaction;
   const loading = categoriesLoading || paymentMethodsLoading;
+
+  // Sort categories and payment methods by usage
+  const sortedCategories = React.useMemo(() => {
+    const completedTransactions = transactions.filter(t => t.status === 'completed');
+    const categoryCount = completedTransactions.reduce((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return [...categories].sort((a, b) => (categoryCount[b.name] || 0) - (categoryCount[a.name] || 0));
+  }, [categories, transactions]);
+
+  const sortedPaymentMethods = React.useMemo(() => {
+    const completedTransactions = transactions.filter(t => t.status === 'completed');
+    const paymentCount = completedTransactions.reduce((acc, t) => {
+      if (t.paymentMethod) acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return [...paymentMethods].sort((a, b) => (paymentCount[b.name] || 0) - (paymentCount[a.name] || 0));
+  }, [paymentMethods, transactions]);
 
   useEffect(() => {
     if (visible) {
@@ -157,7 +177,6 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
       // Navigate to transactions page after deletion
       router.replace('/transactions');
     } catch (error) {
-      console.error('Error deleting transaction:', error);
     } finally {
       setIsDeleting(false);
     }
@@ -441,7 +460,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
                 >
                   <View style={{ flexDirection: 'row', gap: 12 }}>
-                    {categories.map((category) => (
+                    {sortedCategories.map((category) => (
                       <TouchableOpacity
                         key={category.id}
                         style={{
@@ -524,7 +543,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
                 >
                   <View style={{ flexDirection: 'row', gap: 12 }}>
-                    {paymentMethods.map((method) => (
+                    {sortedPaymentMethods.map((method) => (
                       <TouchableOpacity
                         key={method.id}
                         style={{

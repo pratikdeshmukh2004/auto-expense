@@ -25,37 +25,32 @@ export class GmailService {
         return tokens.accessToken;
       } catch (tokenError: any) {
         if (tokenError.message?.includes('getTokens requires a user to be signed in')) {
-          console.log('Token expired, attempting to refresh...');
           try {
             await GoogleSignin.signInSilently();
             const tokens = await GoogleSignin.getTokens();
             return tokens.accessToken;
           } catch (refreshError) {
-            console.error('Failed to refresh token:', refreshError);
             return null;
           }
         }
         throw tokenError;
       }
     } catch (error) {
-      console.error('Error getting access token:', error);
       return null;
     }
   }
 
-  static async fetchTransactionEmails(): Promise<ParsedTransaction[]> {
+  static async fetchTransactionEmails(lastSyncDate?: string): Promise<ParsedTransaction[]> {
     try {
       const SecureStore = await import('expo-secure-store');
       const { StorageKeys } = await import('../constants/StorageKeys');
       const autoParsingEnabled = await SecureStore.getItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
       if (autoParsingEnabled === 'false') {
-        console.log('Auto-parsing is disabled');
         return [];
       }
 
       const token = await this.getAccessToken();
       if (!token) {
-        console.log('No access token found');
         return [];
       }
 
@@ -83,7 +78,6 @@ export class GmailService {
       }
       
       if (keywords.length === 0) {
-        console.log('No keywords configured');
         return [];
       }
 
@@ -91,12 +85,18 @@ export class GmailService {
       const keywordQuery = keywords.map(k => `"${k}"`).join(' OR ');
       const transactionTerms = 'debited OR credited OR "payment made" OR "amount paid" OR "transaction successful" OR "purchase made"';
 
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const afterDate = oneMonthAgo.toISOString().split('T')[0].replace(/-/g, '/');
+      // Use lastSyncDate if provided, otherwise fetch from last month
+      let afterDate: string;
+      if (lastSyncDate) {
+        const syncDate = new Date(lastSyncDate);
+        afterDate = syncDate.toISOString().split('T')[0].replace(/-/g, '/');
+      } else {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        afterDate = oneMonthAgo.toISOString().split('T')[0].replace(/-/g, '/');
+      }
 
       const query = `(${keywordQuery}) AND (${transactionTerms}) after:${afterDate}`;
-      console.log('Gmail search query:', query);
       
       const searchUrl = `${this.GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`;
 
@@ -107,17 +107,14 @@ export class GmailService {
       });      
       
       if (!searchResponse.ok) {
-        console.log('Search failed:', searchResponse.status, await searchResponse.text());
         return [];
       }
 
       const searchData = await searchResponse.json();
       if (!searchData.messages) {
-        console.log('No messages found');
         return [];
       }
 
-      console.log(`Found ${searchData.messages.length} messages`);
 
       const approvedSenders = await NotificationParser.getApprovedSenders();
       const { TransactionService } = await import('./TransactionService');
@@ -145,7 +142,6 @@ export class GmailService {
               );
 
               if (isDuplicate) {
-                console.log('Duplicate transaction, skipping');
                 continue;
               }
 
@@ -172,14 +168,11 @@ export class GmailService {
             }
           }
         } catch (msgError) {
-          console.error('Error fetching message:', msgError);
         }
       }
 
-      console.log(`Parsed ${transactions.length} transactions`);
       return transactions;
     } catch (error) {
-      console.error('Error fetching Gmail messages:', error);
       return [];
     }
   }
@@ -187,7 +180,6 @@ export class GmailService {
   private static parseEmailMessage(messageData: any): ParsedTransaction | null {
     try {
       if (!messageData || !messageData.payload) {
-        console.log('Invalid message data');
         return null;
       }
 
@@ -212,7 +204,6 @@ export class GmailService {
         }
       } catch (e) {
         // Fallback to snippet if decoding fails
-        console.log('Using snippet as fallback');
       }
       
       const subject = subjectHeader?.value || '';
@@ -228,7 +219,6 @@ export class GmailService {
       
       const isTransaction = transactionPatterns.some(pattern => pattern.test(combinedText));
       if (!isTransaction) {
-        console.log('Not a transaction email');
         return null;
       }
       
@@ -325,7 +315,6 @@ export class GmailService {
       const emailDate = new Date(dateHeader?.value || Date.now());
       const timeAgo = this.getTimeAgo(emailDate);
 
-      console.log('Parsed transaction:', { merchant, amount, category, paymentMethod });
 
       return {
         id: messageData.id,
@@ -340,7 +329,6 @@ export class GmailService {
         paymentMethod: paymentMethod,
       };
     } catch (error) {
-      console.error('Error parsing email message:', error);
       return null;
     }
   }

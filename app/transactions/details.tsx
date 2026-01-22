@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import TransactionModal from '../../components/drawers/TransactionModal';
-import Shimmer from '../../components/Shimmer';
+import { TransactionModal } from '../../components/modals';
+import { Shimmer } from '../../components/animations';
 import { Transaction } from '../../services/TransactionService';
 import { useTransactions } from '../../hooks/useQueries';
 

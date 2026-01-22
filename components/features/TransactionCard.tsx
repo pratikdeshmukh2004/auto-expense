@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useRef } from 'react';
 import { Animated, PanResponder, Text, TouchableOpacity, View } from 'react-native';
-import { Transaction } from '../services/TransactionService';
-import { getRelativeTime } from '../utils/dateUtils';
+import { Transaction } from '@/services/TransactionService';
+import { getRelativeTime } from '@/utils/dateUtils';
 
 interface TransactionCardProps {
   transaction: Transaction;

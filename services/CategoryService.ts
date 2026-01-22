@@ -13,7 +13,6 @@ export class CategoryService {
     try {
       return await StorageService.getCategories();
     } catch (error) {
-      console.error('Error getting categories:', error);
       return [];
     }
   }
@@ -28,7 +27,6 @@ export class CategoryService {
       categories.push(newCategory);
       await StorageService.saveCategories(categories);
     } catch (error) {
-      console.error('Error adding category:', error);
     }
   }
 
@@ -41,7 +39,6 @@ export class CategoryService {
         await StorageService.saveCategories(categories);
       }
     } catch (error) {
-      console.error('Error updating category:', error);
     }
   }
 
@@ -51,7 +48,6 @@ export class CategoryService {
       const filteredCategories = categories.filter(cat => cat.id !== id);
       await StorageService.saveCategories(filteredCategories);
     } catch (error) {
-      console.error('Error deleting category:', error);
       throw error;
     }
   }

@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AnimatedCoins from '../../components/AnimatedCoins';
-import TermsModal from '../../components/drawers/TermsModal';
-import { GoogleIcon } from '../../components/GoogleIcon';
+import { AnimatedCoins } from '../../components/animations';
+import { TermsModal } from '../../components/modals';
+import { GoogleIcon } from '../../components/icons';
 import { AuthService } from '../../services/AuthService';
 
 export default function LoginScreen() {
@@ -33,7 +33,6 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during login. Please try again.');
-      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -58,7 +57,6 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during login. Please try again.');
-      console.error('Guest login error:', err);
     } finally {
       setLoading(false);
     }

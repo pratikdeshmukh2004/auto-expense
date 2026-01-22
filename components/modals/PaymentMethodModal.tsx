@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
-import { PaymentMethod } from '../../services/PaymentMethodService';
-import { useAddPaymentMethod, useUpdatePaymentMethod, useDeletePaymentMethod } from '../../hooks/useQueries';
+import { PaymentMethod } from '@/services/PaymentMethodService';
+import { useAddPaymentMethod, useUpdatePaymentMethod, useDeletePaymentMethod } from '@/hooks/useQueries';
 
 interface PaymentMethodModalProps {
   visible: boolean;
@@ -108,7 +108,6 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
         });
       }
     } catch (error) {
-      console.error('Error saving payment method:', error);
     }
   };
 
@@ -145,7 +144,6 @@ export default function PaymentMethodModal({ visible, onClose, onSave, paymentMe
                   }
                 });
               } catch (error) {
-                console.error('Error deleting payment method:', error);
                 Alert.alert('Error', 'Failed to delete payment method. Please try again.');
               }
             }
