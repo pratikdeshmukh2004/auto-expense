@@ -10,7 +10,7 @@ import { StorageKeys } from '../../constants/StorageKeys';
 export default function MPINScreen() {
   const [mpin, setMpin] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricType, setBiometricType] = useState<string>('');
+  const [biometricType, setBiometricType] = useState<string>(Platform.OS === 'ios' ? 'face' : 'fingerprint');
 
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
@@ -42,14 +42,10 @@ export default function MPINScreen() {
       
       if (biometricSetting === 'true') {
         setBiometricEnabled(true);
-        // Auto-trigger biometric authentication
         setTimeout(() => {
           handleBiometricAuth();
         }, 500);
       }
-    } else {
-      // Set default type based on platform even if not available
-      setBiometricType(Platform.OS === 'ios' ? 'face' : 'fingerprint');
     }
   };
 

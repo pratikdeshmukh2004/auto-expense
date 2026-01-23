@@ -77,6 +77,12 @@ export default function TransactionApprovalModal({
 
   const currentTx = pendingTransactions[currentTransaction];
 
+  React.useEffect(() => {
+    if (!currentTx && visible) {
+      onClose();
+    }
+  }, [currentTx, visible, onClose]);
+
   useEffect(() => {
     if (visible && pendingTransactions.length > 0 && !loading) {
       const firstTx = pendingTransactions[0];
@@ -272,11 +278,6 @@ export default function TransactionApprovalModal({
   }
 
   if (!currentTx) {
-    React.useEffect(() => {
-      if (visible) {
-        onClose();
-      }
-    }, [visible]);
     return null;
   }
 
