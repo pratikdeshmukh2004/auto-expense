@@ -42,9 +42,6 @@ export default function MPINScreen() {
       
       if (biometricSetting === 'true') {
         setBiometricEnabled(true);
-        setTimeout(() => {
-          handleBiometricAuth();
-        }, 500);
       }
     }
   };

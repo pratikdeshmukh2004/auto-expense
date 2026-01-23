@@ -14,6 +14,11 @@ export const StorageKeys = {
   BANK_KEYWORDS: 'bank_keywords',
   TRANSACTIONS: 'app_transactions',
   
+  // Cache for online mode
+  CATEGORIES_CACHE: 'categories_cache',
+  PAYMENT_METHODS_CACHE: 'payment_methods_cache',
+  TRANSACTIONS_CACHE: 'transactions_cache',
+  
   // Settings
   STORAGE_TYPE: 'storage_type',
   BIOMETRIC_ENABLED: 'biometric_enabled',

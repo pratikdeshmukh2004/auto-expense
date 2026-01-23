@@ -72,6 +72,8 @@ export default function TransactionApprovalModal({
     return [...paymentMethods].sort((a, b) => (paymentCount[b.name] || 0) - (paymentCount[a.name] || 0));
   }, [paymentMethods, transactions]);
 
+  const [isScrolling, setIsScrolling] = useState(false);
+
   const pan = useRef(new Animated.ValueXY()).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -189,10 +191,11 @@ export default function TransactionApprovalModal({
   };
 
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder: () => !isScrolling,
     onMoveShouldSetPanResponder: (_, gestureState) => {
-      return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 50;
+      return !isScrolling && Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 50;
     },
+    onPanResponderTerminationRequest: () => true,
     onPanResponderGrant: () => {
       pan.setOffset({
         x: pan.x._value,
@@ -278,7 +281,92 @@ export default function TransactionApprovalModal({
   }
 
   if (!currentTx) {
-    return null;
+    return (
+      <Modal
+        visible={visible}
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        transparent
+        statusBarTranslucent
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 24,
+              padding: 40,
+              alignItems: "center",
+              width: "85%",
+              maxWidth: 400,
+            }}
+          >
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={48} color="#10b981" />
+            </View>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "bold",
+                color: "#111827",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              All Clear!
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#6b7280",
+                textAlign: "center",
+                marginBottom: 28,
+                lineHeight: 20,
+              }}
+            >
+              You have no pending transactions to review.
+            </Text>
+            <TouchableOpacity
+              style={{
+                width: "100%",
+                paddingVertical: 16,
+                borderRadius: 14,
+                backgroundColor: "#10b981",
+                alignItems: "center",
+                shadowColor: "#10b981",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+              onPress={onClose}
+            >
+              <Text
+                style={{ fontSize: 16, fontWeight: "bold", color: "white" }}
+              >
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
   }
 
   return (
@@ -391,7 +479,7 @@ export default function TransactionApprovalModal({
               ]}
               {...panResponder.panHandlers}
             >
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} scrollEnabled={true} nestedScrollEnabled={true}>
                 {/* Amount */}
                 <View
                   style={{
@@ -545,6 +633,11 @@ export default function TransactionApprovalModal({
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={{ marginHorizontal: -4 }}
+                      nestedScrollEnabled={true}
+                      onScrollBeginDrag={() => setIsScrolling(true)}
+                      onScrollEndDrag={() => setIsScrolling(false)}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
                     >
                       <View
                         style={{
@@ -626,6 +719,11 @@ export default function TransactionApprovalModal({
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={{ marginHorizontal: -4 }}
+                      nestedScrollEnabled={true}
+                      onScrollBeginDrag={() => setIsScrolling(true)}
+                      onScrollEndDrag={() => setIsScrolling(false)}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
                     >
                       <View
                         style={{

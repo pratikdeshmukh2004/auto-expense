@@ -433,14 +433,24 @@ export class GoogleSheetsService {
       const tokens = await GoogleSignin.getTokens();
       const accessToken = tokens.accessToken;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Transactions!A2:I`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
       const rows = data.values || [];
@@ -460,6 +470,7 @@ export class GoogleSheetsService {
         sender: '',
       }));
     } catch (error) {
+      console.error('Failed to fetch transactions:', error);
       return [];
     }
   }
@@ -568,14 +579,20 @@ export class GoogleSheetsService {
       const tokens = await GoogleSignin.getTokens();
       const accessToken = tokens.accessToken;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!A2:E`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -594,6 +611,7 @@ export class GoogleSheetsService {
       
       return categories;
     } catch (error) {
+      console.error('Failed to fetch categories:', error);
       return [];
     }
   }
@@ -646,14 +664,20 @@ export class GoogleSheetsService {
       const tokens = await GoogleSignin.getTokens();
       const accessToken = tokens.accessToken;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!G2:L`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -671,6 +695,7 @@ export class GoogleSheetsService {
         last4: row[5] || '',
       }));
     } catch (error) {
+      console.error('Failed to fetch payment methods:', error);
       return [];
     }
   }

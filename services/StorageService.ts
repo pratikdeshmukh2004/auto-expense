@@ -17,7 +17,19 @@ export class StorageService {
     const storageType = await this.getStorageType();
     
     if (this.isOnlineMode(storageType)) {
-      return await GoogleSheetsService.getCategories();
+      try {
+        const categories = await GoogleSheetsService.getCategories();
+        // Cache successful fetch
+        if (categories.length > 0) {
+          await SecureStore.setItemAsync(StorageKeys.CATEGORIES_CACHE, JSON.stringify(categories));
+        }
+        return categories;
+      } catch (error) {
+        console.error('Google Sheets fetch failed, using cache:', error);
+        // Fallback to cache
+        const cached = await SecureStore.getItemAsync(StorageKeys.CATEGORIES_CACHE);
+        return cached ? JSON.parse(cached) : [];
+      }
     } else {
       const stored = await SecureStore.getItemAsync(StorageKeys.CATEGORIES);
       return stored ? JSON.parse(stored) : [];
@@ -39,7 +51,19 @@ export class StorageService {
     const storageType = await this.getStorageType();
     
     if (this.isOnlineMode(storageType)) {
-      return await GoogleSheetsService.getPaymentMethods();
+      try {
+        const methods = await GoogleSheetsService.getPaymentMethods();
+        // Cache successful fetch
+        if (methods.length > 0) {
+          await SecureStore.setItemAsync(StorageKeys.PAYMENT_METHODS_CACHE, JSON.stringify(methods));
+        }
+        return methods;
+      } catch (error) {
+        console.error('Google Sheets fetch failed, using cache:', error);
+        // Fallback to cache
+        const cached = await SecureStore.getItemAsync(StorageKeys.PAYMENT_METHODS_CACHE);
+        return cached ? JSON.parse(cached) : [];
+      }
     } else {
       const stored = await SecureStore.getItemAsync(StorageKeys.PAYMENT_METHODS);
       return stored ? JSON.parse(stored) : [];
@@ -61,7 +85,19 @@ export class StorageService {
     const storageType = await this.getStorageType();
     
     if (this.isOnlineMode(storageType)) {
-      return await GoogleSheetsService.getTransactions();
+      try {
+        const transactions = await GoogleSheetsService.getTransactions();
+        // Cache successful fetch
+        if (transactions.length > 0) {
+          await SecureStore.setItemAsync(StorageKeys.TRANSACTIONS_CACHE, JSON.stringify(transactions));
+        }
+        return transactions;
+      } catch (error) {
+        console.error('Google Sheets fetch failed, using cache:', error);
+        // Fallback to cache
+        const cached = await SecureStore.getItemAsync(StorageKeys.TRANSACTIONS_CACHE);
+        return cached ? JSON.parse(cached) : [];
+      }
     } else {
       const stored = await SecureStore.getItemAsync(StorageKeys.TRANSACTIONS);
       return stored ? JSON.parse(stored) : [];
