@@ -6,6 +6,12 @@ import * as SecureStore from 'expo-secure-store';
 import { StorageKeys } from '../constants/StorageKeys';
 
 export class AuthService {
+  static async clearGoogleSignIn(): Promise<void> {
+    try {
+      await GoogleSignin.revokeAccess();
+      await GoogleSignin.signOut();
+    } catch {}
+  }
   static async isLoggedIn(): Promise<boolean> {
     try {
       const token = await SecureStore.getItemAsync(StorageKeys.USER_TOKEN);
@@ -41,6 +47,9 @@ export class AuthService {
 
   static async signInWithGoogle(): Promise<boolean> {
     try {
+      // Clear any corrupted state first
+      await this.clearGoogleSignIn();
+      
       GoogleSignin.configure({
         scopes: [
           'https://www.googleapis.com/auth/drive',
@@ -51,6 +60,7 @@ export class AuthService {
         iosClientId: '801866874360-m23kvuibisrtk6i36gq3ghveieu6fd94.apps.googleusercontent.com',
         offlineAccess: true,
       });
+      
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
       

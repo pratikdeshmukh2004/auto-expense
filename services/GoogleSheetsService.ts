@@ -6,6 +6,21 @@ const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
 export class GoogleSheetsService {
   /**
+   * Get valid tokens, refresh if needed
+   */
+  private static async getValidTokens(): Promise<{ accessToken: string } | null> {
+    try {
+      return await GoogleSignin.getTokens();
+    } catch {
+      try {
+        await GoogleSignin.signInSilently();
+        return await GoogleSignin.getTokens();
+      } catch {
+        return null;
+      }
+    }
+  }
+  /**
    * Create a new spreadsheet with Configuration and Transactions sheets
    */
   static async createAutoExpenseSheet(): Promise<{
@@ -14,8 +29,8 @@ export class GoogleSheetsService {
   } | null> {
     try {
       // Get current user and tokens
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return null;
       const accessToken = tokens.accessToken;
 
       // Create new spreadsheet
@@ -385,8 +400,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const row = [
@@ -429,8 +444,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return [];
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
       const controller = new AbortController();
@@ -483,8 +498,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       // Delete the specific row (rowIndex + 1 because sheets are 1-indexed, +1 more for header)
@@ -536,8 +551,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const rows = transactions.map(t => [
@@ -575,8 +590,8 @@ export class GoogleSheetsService {
         return [];
       }
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
       const controller = new AbortController();
@@ -624,8 +639,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const rows = categories.map(c => [c.id, c.name, c.icon, c.color, c.description || '']);
@@ -660,8 +675,8 @@ export class GoogleSheetsService {
         return [];
       }
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
       const controller = new AbortController();
@@ -708,8 +723,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const rows = methods.map(m => [m.id, m.name, m.type, m.icon, m.color, m.last4 || '']);
@@ -742,8 +757,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return [];
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
       const response = await fetch(
@@ -776,8 +791,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const rows = keywords.map(k => [k.id, k.keyword, k.category]);
@@ -810,8 +825,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return [];
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
       const response = await fetch(
@@ -843,8 +858,8 @@ export class GoogleSheetsService {
       const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
       if (!spreadsheetId) return false;
 
-      await GoogleSignin.signInSilently();
-      const tokens = await GoogleSignin.getTokens();
+      const tokens = await this.getValidTokens();
+      if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
       const rows = senders.map(s => [s.sender, s.paymentMethod || '']);
