@@ -1,14 +1,20 @@
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
+import { Alert } from "react-native";
 import { StorageKeys } from "../constants/StorageKeys";
 
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
 export class GoogleSheetsService {
+  private static redirecting = false;
+
   /**
    * Get valid tokens, refresh if needed
    */
-  private static async getValidTokens(): Promise<{ accessToken: string } | null> {
+  private static async getValidTokens(): Promise<{
+    accessToken: string;
+  } | null> {
     try {
       return await GoogleSignin.getTokens();
     } catch {
@@ -16,9 +22,31 @@ export class GoogleSheetsService {
         await GoogleSignin.signInSilently();
         return await GoogleSignin.getTokens();
       } catch {
+        await this.handleAuthFailure();
         return null;
       }
     }
+  }
+
+  private static async handleAuthFailure(): Promise<void> {
+    if (this.redirecting) return;
+    this.redirecting = true;
+
+    await SecureStore.deleteItemAsync(StorageKeys.USER_TOKEN);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_NAME);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_EMAIL);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_PHOTO);
+    await SecureStore.deleteItemAsync(StorageKeys.USER_GUEST);
+    await SecureStore.deleteItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+
+    Alert.alert(
+      'Session Expired',
+      'Please sign in again to continue.',
+      [{ text: 'OK', onPress: () => {
+        this.redirecting = false;
+        router.replace('/auth/login');
+      }}]
+    );
   }
   /**
    * Create a new spreadsheet with Configuration and Transactions sheets
@@ -72,7 +100,10 @@ export class GoogleSheetsService {
       await this.initializeDefaultData(spreadsheetId, accessToken);
 
       // Save spreadsheet ID
-      await SecureStore.setItemAsync(StorageKeys.GOOGLE_SHEET_ID, spreadsheetId);
+      await SecureStore.setItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+        spreadsheetId,
+      );
 
       return {
         spreadsheetId,
@@ -147,17 +178,19 @@ export class GoogleSheetsService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          values: [[
-            "Date",
-            "Merchant",
-            "Amount",
-            "Category",
-            "Payment Method",
-            "Type",
-            "Status",
-            "Notes",
-            "Created At",
-          ]],
+          values: [
+            [
+              "Date",
+              "Merchant",
+              "Amount",
+              "Category",
+              "Payment Method",
+              "Type",
+              "Status",
+              "Notes",
+              "Created At",
+            ],
+          ],
         }),
       },
     );
@@ -370,8 +403,7 @@ export class GoogleSheetsService {
     // Apply table formatting
     try {
       await this.batchUpdate(spreadsheetId, accessToken, tableRequests);
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   /**
@@ -397,7 +429,9 @@ export class GoogleSheetsService {
    */
   static async addTransaction(transaction: any): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
@@ -440,11 +474,18 @@ export class GoogleSheetsService {
    * Get all transactions from the sheet
    */
   static async getTransactions(): Promise<any[]> {
+    console.log("Triggerd....");
+
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
+
       if (!spreadsheetId) return [];
 
       const tokens = await this.getValidTokens();
+      console.log(tokens);
+
       if (!tokens) return [];
       const accessToken = tokens.accessToken;
 
@@ -458,7 +499,7 @@ export class GoogleSheetsService {
             Authorization: `Bearer ${accessToken}`,
           },
           signal: controller.signal,
-        }
+        },
       );
 
       clearTimeout(timeoutId);
@@ -469,23 +510,24 @@ export class GoogleSheetsService {
 
       const data = await response.json();
       const rows = data.values || [];
+      console.log(data, "data...");
 
       return rows.map((row: any[], index: number) => ({
         id: (index + 1).toString(),
-        merchant: row[1] || '',
-        amount: row[2] || '',
-        category: row[3] || '',
-        paymentMethod: row[4] || '',
-        date: row[0] || '',
+        merchant: row[1] || "",
+        amount: row[2] || "",
+        category: row[3] || "",
+        paymentMethod: row[4] || "",
+        date: row[0] || "",
         timestamp: new Date(row[0] || new Date()),
-        type: row[5] || 'expense',
-        status: row[6] || 'completed',
-        notes: row[7] || '',
-        rawMessage: '',
-        sender: '',
+        type: row[5] || "expense",
+        status: row[6] || "completed",
+        notes: row[7] || "",
+        rawMessage: "",
+        sender: "",
       }));
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      console.error("Failed to fetch transactions:", error);
       return [];
     }
   }
@@ -495,7 +537,9 @@ export class GoogleSheetsService {
    */
   static async deleteTransactionRow(rowIndex: number): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
@@ -503,25 +547,30 @@ export class GoogleSheetsService {
       const accessToken = tokens.accessToken;
 
       // Delete the specific row (rowIndex + 1 because sheets are 1-indexed, +1 more for header)
-      const response = await fetch(`${SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                deleteDimension: {
+                  range: {
+                    sheetId: 1, // Transactions sheet
+                    dimension: "ROWS",
+                    startIndex: rowIndex + 1, // +1 for header row
+                    endIndex: rowIndex + 2,
+                  },
+                },
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          requests: [{
-            deleteDimension: {
-              range: {
-                sheetId: 1, // Transactions sheet
-                dimension: "ROWS",
-                startIndex: rowIndex + 1, // +1 for header row
-                endIndex: rowIndex + 2
-              }
-            }
-          }]
-        }),
-      });
+      );
 
       return response.ok;
     } catch (error) {
@@ -535,8 +584,8 @@ export class GoogleSheetsService {
   static async deleteTransactionById(transactionId: string): Promise<boolean> {
     try {
       const transactions = await this.getTransactions();
-      const rowIndex = transactions.findIndex(t => t.id === transactionId);
-      
+      const rowIndex = transactions.findIndex((t) => t.id === transactionId);
+
       if (rowIndex === -1) {
         return false;
       }
@@ -548,16 +597,25 @@ export class GoogleSheetsService {
   }
   static async saveTransactions(transactions: any[]): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
       if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
-      const rows = transactions.map(t => [
-        t.date, t.merchant, t.amount, t.category, t.paymentMethod,
-        t.type, t.status, t.notes || '', t.createdAt || new Date().toISOString()
+      const rows = transactions.map((t) => [
+        t.date,
+        t.merchant,
+        t.amount,
+        t.category,
+        t.paymentMethod,
+        t.type,
+        t.status,
+        t.notes || "",
+        t.createdAt || new Date().toISOString(),
       ]);
 
       const response = await fetch(
@@ -571,7 +629,7 @@ export class GoogleSheetsService {
           body: JSON.stringify({
             values: rows,
           }),
-        }
+        },
       );
 
       return response.ok;
@@ -585,7 +643,9 @@ export class GoogleSheetsService {
    */
   static async getCategories(): Promise<any[]> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) {
         return [];
       }
@@ -604,7 +664,7 @@ export class GoogleSheetsService {
             Authorization: `Bearer ${accessToken}`,
           },
           signal: controller.signal,
-        }
+        },
       );
 
       clearTimeout(timeoutId);
@@ -617,16 +677,16 @@ export class GoogleSheetsService {
       const rows = data.values || [];
 
       const categories = rows.map((row: any[]) => ({
-        id: row[0] || '',
-        name: row[1] || '',
-        icon: row[2] || '',
-        color: row[3] || '',
-        description: row[4] || '',
+        id: row[0] || "",
+        name: row[1] || "",
+        icon: row[2] || "",
+        color: row[3] || "",
+        description: row[4] || "",
       }));
-      
+
       return categories;
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error("Failed to fetch categories:", error);
       return [];
     }
   }
@@ -636,14 +696,22 @@ export class GoogleSheetsService {
    */
   static async saveCategories(categories: any[]): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
       if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
-      const rows = categories.map(c => [c.id, c.name, c.icon, c.color, c.description || '']);
+      const rows = categories.map((c) => [
+        c.id,
+        c.name,
+        c.icon,
+        c.color,
+        c.description || "",
+      ]);
 
       await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!A2:E?valueInputOption=RAW`,
@@ -656,7 +724,7 @@ export class GoogleSheetsService {
           body: JSON.stringify({
             values: rows,
           }),
-        }
+        },
       );
 
       return true;
@@ -670,7 +738,9 @@ export class GoogleSheetsService {
    */
   static async getPaymentMethods(): Promise<any[]> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) {
         return [];
       }
@@ -689,7 +759,7 @@ export class GoogleSheetsService {
             Authorization: `Bearer ${accessToken}`,
           },
           signal: controller.signal,
-        }
+        },
       );
 
       clearTimeout(timeoutId);
@@ -702,15 +772,15 @@ export class GoogleSheetsService {
       const rows = data.values || [];
 
       return rows.map((row: any[]) => ({
-        id: row[0] || '',
-        name: row[1] || '',
-        type: row[2] || '',
-        icon: row[3] || '',
-        color: row[4] || '',
-        last4: row[5] || '',
+        id: row[0] || "",
+        name: row[1] || "",
+        type: row[2] || "",
+        icon: row[3] || "",
+        color: row[4] || "",
+        last4: row[5] || "",
       }));
     } catch (error) {
-      console.error('Failed to fetch payment methods:', error);
+      console.error("Failed to fetch payment methods:", error);
       return [];
     }
   }
@@ -720,14 +790,23 @@ export class GoogleSheetsService {
    */
   static async savePaymentMethods(methods: any[]): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
       if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
-      const rows = methods.map(m => [m.id, m.name, m.type, m.icon, m.color, m.last4 || '']);
+      const rows = methods.map((m) => [
+        m.id,
+        m.name,
+        m.type,
+        m.icon,
+        m.color,
+        m.last4 || "",
+      ]);
 
       await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!G2:L?valueInputOption=RAW`,
@@ -740,7 +819,7 @@ export class GoogleSheetsService {
           body: JSON.stringify({
             values: rows,
           }),
-        }
+        },
       );
 
       return true;
@@ -754,7 +833,9 @@ export class GoogleSheetsService {
    */
   static async getKeywords(): Promise<any[]> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return [];
 
       const tokens = await this.getValidTokens();
@@ -767,16 +848,16 @@ export class GoogleSheetsService {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       const data = await response.json();
       const rows = data.values || [];
 
       return rows.map((row: any[]) => ({
-        id: row[0] || '',
-        keyword: row[1] || '',
-        category: row[2] || '',
+        id: row[0] || "",
+        keyword: row[1] || "",
+        category: row[2] || "",
       }));
     } catch (error) {
       return [];
@@ -788,14 +869,16 @@ export class GoogleSheetsService {
    */
   static async saveKeywords(keywords: any[]): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
       if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
-      const rows = keywords.map(k => [k.id, k.keyword, k.category]);
+      const rows = keywords.map((k) => [k.id, k.keyword, k.category]);
 
       await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!N2:P?valueInputOption=RAW`,
@@ -808,7 +891,7 @@ export class GoogleSheetsService {
           body: JSON.stringify({
             values: rows,
           }),
-        }
+        },
       );
 
       return true;
@@ -822,7 +905,9 @@ export class GoogleSheetsService {
    */
   static async getApprovedSenders(): Promise<any[]> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return [];
 
       const tokens = await this.getValidTokens();
@@ -835,15 +920,15 @@ export class GoogleSheetsService {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       const data = await response.json();
       const rows = data.values || [];
 
       return rows.map((row: any[]) => ({
-        sender: row[0] || '',
-        paymentMethod: row[1] || '',
+        sender: row[0] || "",
+        paymentMethod: row[1] || "",
       }));
     } catch (error) {
       return [];
@@ -855,14 +940,16 @@ export class GoogleSheetsService {
    */
   static async saveApprovedSenders(senders: any[]): Promise<boolean> {
     try {
-      const spreadsheetId = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      const spreadsheetId = await SecureStore.getItemAsync(
+        StorageKeys.GOOGLE_SHEET_ID,
+      );
       if (!spreadsheetId) return false;
 
       const tokens = await this.getValidTokens();
       if (!tokens) return false;
       const accessToken = tokens.accessToken;
 
-      const rows = senders.map(s => [s.sender, s.paymentMethod || '']);
+      const rows = senders.map((s) => [s.sender, s.paymentMethod || ""]);
 
       await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/Configuration!R2:S?valueInputOption=RAW`,
@@ -875,7 +962,7 @@ export class GoogleSheetsService {
           body: JSON.stringify({
             values: rows,
           }),
-        }
+        },
       );
 
       return true;

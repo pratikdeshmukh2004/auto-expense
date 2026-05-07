@@ -112,11 +112,11 @@ export class AuthService {
     await SecureStore.deleteItemAsync(StorageKeys.CATEGORIES);
     await SecureStore.deleteItemAsync(StorageKeys.PAYMENT_METHODS);
     await SecureStore.deleteItemAsync(StorageKeys.BANK_KEYWORDS);
-    await SecureStore.deleteItemAsync(StorageKeys.STORAGE_TYPE);
     await SecureStore.deleteItemAsync(StorageKeys.PARSED_TRANSACTIONS);
     await SecureStore.deleteItemAsync(StorageKeys.APPROVED_SENDERS);
     await SecureStore.deleteItemAsync(StorageKeys.LAST_EMAIL_SYNC);
     await SecureStore.deleteItemAsync(StorageKeys.AUTO_PARSING_ENABLED);
+    await SecureStore.deleteItemAsync(StorageKeys.GOOGLE_SHEET_ID);
   }
 
   static async getMpin(): Promise<string | null> {
@@ -139,9 +139,6 @@ export class AuthService {
     return await SecureStore.getItemAsync(StorageKeys.USER_PHOTO);
   }
 
-  static async getStorageType(): Promise<string | null> {
-    return await SecureStore.getItemAsync(StorageKeys.STORAGE_TYPE);
-  }
 }
 
 function isErrorWithCode(error: unknown): error is { code: string } {

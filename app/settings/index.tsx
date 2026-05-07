@@ -421,7 +421,7 @@ export default function SettingsIndex() {
                 </View>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>Storage Management</Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Offline/Online storage settings</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Google Sheets sync settings</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />

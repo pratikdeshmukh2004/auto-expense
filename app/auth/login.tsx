@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AnimatedCoins } from '../../components/animations';
 import { TermsModal } from '../../components/modals';
 import { GoogleIcon } from '../../components/icons';
 import { AuthService } from '../../services/AuthService';
+import { StorageKeys } from '../../constants/StorageKeys';
 
 export default function LoginScreen() {
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -22,11 +23,14 @@ export default function LoginScreen() {
       
       if (success) {
         const hasMpin = await AuthService.getMpin();
+        const hasSheet = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
         
         if (!hasMpin) {
           router.replace('/auth/generate-mpin');
+        } else if (!hasSheet) {
+          router.replace('/auth/storage-selection');
         } else {
-          router.replace('/auth/mpin');
+          router.replace('/dashboard');
         }
       } else {
         setError('Google login failed. Please try again.');
@@ -38,35 +42,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGuestLogin = async () => {
-    setError('');
-    setLoading(true);
-    
-    try {
-      const success = await AuthService.loginAsGuest();
-      if (success) {
-        const hasMpin = await AuthService.getMpin();
-        
-        if (!hasMpin) {
-          router.replace('/auth/generate-mpin');
-        } else {
-          router.replace('/auth/mpin');
-        }
-      } else {
-        setError('Guest login failed. Please try again.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'An error occurred during login. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
-      
-      <AnimatedCoins />
       
       <View style={styles.content}>
         {/* Logo */}
@@ -104,17 +82,6 @@ export default function LoginScreen() {
             <GoogleIcon />
             <Text style={styles.googleButtonText}>
               {loading ? 'Signing in...' : 'Continue with Google'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.guestButton, loading && styles.buttonDisabled]} 
-            activeOpacity={0.8} 
-            onPress={handleGuestLogin}
-            disabled={loading}
-          >
-            <Text style={styles.guestButtonText}>
-              {loading ? 'Signing in...' : 'Continue as Guest'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -194,19 +161,6 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     color: '#1F1F1F',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  guestButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#FAFAFA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestButtonText: {
-    color: '#757575',
     fontWeight: '600',
     fontSize: 16,
   },

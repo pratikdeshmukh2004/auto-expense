@@ -130,12 +130,7 @@ export function useDeleteTransaction() {
 export function useCategories() {
   return useQuery({
     queryKey: QUERY_KEYS.categories,
-    queryFn: async () => {
-      console.log('useCategories - queryFn starting');
-      const result = await StorageService.getCategories();
-      console.log('useCategories - StorageService result:', result);
-      return result;
-    },
+    queryFn: () => StorageService.getCategories(),
   });
 }
 
@@ -231,12 +226,7 @@ export function useTotalExpenses() {
 export function usePaymentMethods() {
   return useQuery({
     queryKey: QUERY_KEYS.paymentMethods,
-    queryFn: async () => {
-      console.log('usePaymentMethods - queryFn starting');
-      const result = await StorageService.getPaymentMethods();
-      console.log('usePaymentMethods - StorageService result:', result);
-      return result;
-    },
+    queryFn: () => StorageService.getPaymentMethods(),
   });
 }
 

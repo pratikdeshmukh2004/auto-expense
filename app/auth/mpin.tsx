@@ -73,7 +73,8 @@ export default function MPINScreen() {
     }
     
     if (enteredMpin === storedMpin) {
-      router.replace('/dashboard');
+      const hasSheet = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+      router.replace(hasSheet ? '/dashboard' : '/auth/storage-selection');
     } else {
       Alert.alert('Invalid MPIN', 'Please try again');
       setMpin('');
@@ -116,7 +117,8 @@ export default function MPINScreen() {
       });
 
       if (result.success) {
-        router.replace('/dashboard');
+        const hasSheet = await SecureStore.getItemAsync(StorageKeys.GOOGLE_SHEET_ID);
+        router.replace(hasSheet ? '/dashboard' : '/auth/storage-selection');
       }
     } catch (error) {
       Alert.alert('Authentication Error', 'Please try again');

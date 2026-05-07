@@ -4,15 +4,12 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StatusBar, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AnimatedCoins } from '../../components/animations';
 import { SelectSheetModal } from '../../components/modals';
 import { StorageKeys } from '../../constants/StorageKeys';
-import { AuthService } from '../../services/AuthService';
 import { GoogleSheetsService } from '../../services/GoogleSheetsService';
 
 export default function StorageSelectionScreen() {
-  const [selectedStorage, setSelectedStorage] = useState<'offline' | 'auto' | 'existing'>('offline');
-  const [isGuest, setIsGuest] = useState(false);
+  const [selectedStorage, setSelectedStorage] = useState<'auto' | 'existing'>('auto');
   const [showSheetModal, setShowSheetModal] = useState(false);
   const [selectedSheetName, setSelectedSheetName] = useState<string>('');
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
@@ -20,7 +17,6 @@ export default function StorageSelectionScreen() {
   const logoScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    checkUserType();
     animateLogo();
   }, []);
 
@@ -33,18 +29,10 @@ export default function StorageSelectionScreen() {
     }).start();
   };
 
-  const checkUserType = async () => {
-    const guestStatus = await AuthService.isGuest();
-    setIsGuest(guestStatus);
-    setSelectedStorage(guestStatus ? 'offline' : 'auto');
-  };
-
   const handleContinue = async () => {
-    await SecureStore.setItemAsync(StorageKeys.STORAGE_TYPE, selectedStorage);
-    await initializeDefaultData();
-    
     if (selectedStorage === 'auto') {
       setIsCreatingSheet(true);
+      await initializeDefaultData();
       const result = await GoogleSheetsService.createAutoExpenseSheet();
       setIsCreatingSheet(false);
       
@@ -124,8 +112,6 @@ export default function StorageSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       
-      <AnimatedCoins />
-      
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <Animated.Image
@@ -136,48 +122,22 @@ export default function StorageSelectionScreen() {
           ]}
           resizeMode="contain"
         />
-        <Text style={styles.heroTitle}>Choose Your Storage</Text>
-        <Text style={styles.heroSubtitle}>Select how you want to manage your expense data</Text>
+        <Text style={styles.heroTitle}>Setup Your Storage</Text>
+        <Text style={styles.heroSubtitle}>Your data will be synced to Google Sheets</Text>
       </View>
 
       {/* Content */}
       <View style={styles.content}>
         {/* Storage Options */}
         <View style={styles.optionsContainer}>
-          {/* Offline Storage */}
-          <TouchableOpacity
-            style={[
-              styles.optionCard,
-              selectedStorage === 'offline' && styles.optionCardSelected
-            ]}
-            onPress={() => setSelectedStorage('offline')}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              styles.optionIconContainer,
-              selectedStorage !== 'offline' && styles.optionIconInactive
-            ]}>
-              <Ionicons name="save-outline" size={24} color={selectedStorage === 'offline' ? '#EA2831' : '#64748B'} />
-            </View>
-            
-            <View style={styles.optionContent}>
-              <Text style={styles.optionTitle}>Offline Storage</Text>
-              <Text style={styles.optionDescription}>
-                Store your data privately on this device.
-              </Text>
-            </View>
-          </TouchableOpacity>
-
           {/* Auto-Create Sheet */}
           <TouchableOpacity
             style={[
               styles.optionCard,
-              selectedStorage === 'auto' && styles.optionCardSelected,
-              isGuest && styles.optionCardDisabled
+              selectedStorage === 'auto' && styles.optionCardSelected
             ]}
-            onPress={() => !isGuest && setSelectedStorage('auto')}
-            activeOpacity={isGuest ? 1 : 0.7}
-            disabled={isGuest}
+            onPress={() => setSelectedStorage('auto')}
+            activeOpacity={0.7}
           >
             <View style={[
               styles.defaultBadge,
@@ -205,16 +165,10 @@ export default function StorageSelectionScreen() {
           <TouchableOpacity
             style={[
               styles.optionCard,
-              selectedStorage === 'existing' && styles.optionCardSelected,
-              isGuest && styles.optionCardDisabled
+              selectedStorage === 'existing' && styles.optionCardSelected
             ]}
-            onPress={() => {
-              if (!isGuest) {
-                setShowSheetModal(true);
-              }
-            }}
-            activeOpacity={isGuest ? 1 : 0.7}
-            disabled={isGuest}
+            onPress={() => setShowSheetModal(true)}
+            activeOpacity={0.7}
           >
             <View style={[
               styles.optionIconContainer,
@@ -281,11 +235,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     position: 'relative',
     zIndex: 1,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
   },
   logo: {
     width: 80,
@@ -359,9 +308,6 @@ const styles = StyleSheet.create({
   },
   badgeInactive: {
     backgroundColor: '#94A3B8',
-  },
-  optionCardDisabled: {
-    opacity: 0.4,
   },
   optionIconContainer: {
     width: 48,
