@@ -3,11 +3,12 @@ import { router, usePathname } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../providers/ThemeProvider';
 
 export default function BottomNavigation() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-
+  const { colors } = useTheme();
   const tabs = [
     { name: 'Dashboard', icon: 'grid', path: '/dashboard' },
     { name: 'Transactions', icon: 'receipt', path: '/transactions' },
@@ -24,9 +25,9 @@ export default function BottomNavigation() {
       justifyContent: 'space-around',
       alignItems: 'center',
       height: insets.bottom > 20 ? 64 + insets.bottom : 64,
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      backgroundColor: colors.card,
       borderTopWidth: 1,
-      borderTopColor: '#e2e8f0',
+      borderTopColor: colors.border,
       paddingHorizontal: 10,
       paddingBottom: insets.bottom > 20 ? insets.bottom : 0,
     }}>

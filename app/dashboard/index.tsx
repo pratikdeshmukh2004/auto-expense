@@ -12,15 +12,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimatedBackground } from "../../components/animations";
 import { CategoryBreakdown, MerchantBreakdown, SpendingTrends, TransactionCard } from "../../components/features";
-import { TransactionApprovalModal, TransactionModal } from "../../components/modals";
+import { TransactionModal } from "../../components/modals";
 import { Shimmer } from "../../components/animations";
+import { useTheme } from "../../providers/ThemeProvider";
 import {
   useAddTransaction,
   useCategories,
   useDeleteTransaction,
   useTransactions,
 } from "../../hooks/useQueries";
-import { AuthService } from "../../services/AuthService";
 import {
   Transaction
 } from "../../services/TransactionService";
@@ -62,13 +62,14 @@ const AnimatedNumber = ({
     : displayValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Text style={[{ fontSize: 20, fontWeight: "bold", color: "#0d121b" }, style]} numberOfLines={1} adjustsFontSizeToFit>
+    <Text style={[{ fontSize: 20, fontWeight: "bold" }, style]} numberOfLines={1} adjustsFontSizeToFit>
       {prefix}{formatted}
     </Text>
   );
 };
 
 export default function DashboardIndex() {
+  const { isDark, toggle, colors } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
@@ -80,13 +81,8 @@ export default function DashboardIndex() {
   );
   const [transactionToDuplicate, setTransactionToDuplicate] =
     useState<Transaction | null>(null);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [hasPendingTransactions, setHasPendingTransactions] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   // TanStack Query hooks
@@ -115,8 +111,8 @@ export default function DashboardIndex() {
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
   })();
 
-  const thisYearExpenses = allTransactions
-    .filter(t => t.type === 'expense' && new Date(t.timestamp).getFullYear() === now.getFullYear())
+  const allTimeExpenses = allTransactions
+    .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const totalExpenses = thisMonthExpenses;
@@ -206,10 +202,6 @@ export default function DashboardIndex() {
     return "Good Evening";
   };
 
-  useEffect(() => {
-    loadUserInfo();
-  }, []);
-
   // Separate effect for handling data updates
   useEffect(() => {
     // Set category icons and colors when categories are loaded
@@ -234,15 +226,6 @@ export default function DashboardIndex() {
       setCategoryColors(colorMap);
     }
 
-    // Set pending transactions count
-    if (transactions.length > 0) {
-      const pendingCount = transactions.filter(
-        (t) => t.status === "pending",
-      ).length;
-      setHasPendingTransactions(pendingCount > 0);
-      setPendingCount(pendingCount);
-    }
-
     setInitialLoading(loading);
   }, [categories.length, transactions.length, loading]);
 
@@ -252,14 +235,6 @@ export default function DashboardIndex() {
     }, []),
   );
 
-  const loadUserInfo = async () => {
-    const guest = await AuthService.isGuest();
-    setIsGuest(guest);
-    if (!guest) {
-      const name = await AuthService.getUserName();
-      setUserName(name);
-    }
-  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -291,7 +266,7 @@ export default function DashboardIndex() {
 
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f6f6" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {!initialLoading && <AnimatedBackground />}
 
       {/* Header */}
@@ -307,7 +282,7 @@ export default function DashboardIndex() {
         }}
       >
         <View>
-          <Text style={{ fontSize: 20, fontWeight: "bold", color: "#0d121b" }}>
+          <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.text }}>
             {getGreeting()}
           </Text>
         </View>
@@ -316,7 +291,7 @@ export default function DashboardIndex() {
             width: 44,
             height: 44,
             borderRadius: 22,
-            backgroundColor: "white",
+            backgroundColor: colors.card,
             alignItems: "center",
             justifyContent: "center",
             shadowColor: "#000",
@@ -324,35 +299,10 @@ export default function DashboardIndex() {
             shadowOpacity: 0.1,
             shadowRadius: 2,
             elevation: 2,
-            position: "relative",
           }}
-          onPress={() => setShowApprovalModal(true)}
+          onPress={toggle}
         >
-          <Ionicons name="notifications-outline" size={24} color="#EA2831" />
-          {hasPendingTransactions && (
-            <View
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                minWidth: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: "#10b981",
-                borderWidth: 2,
-                borderColor: "white",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: 4,
-              }}
-            >
-              <Text
-                style={{ fontSize: 10, fontWeight: "bold", color: "white" }}
-              >
-                {pendingCount}
-              </Text>
-            </View>
-          )}
+          <Ionicons name={isDark ? "sunny" : "moon"} size={22} color="#EA2831" />
         </TouchableOpacity>
       </View>
 
@@ -371,7 +321,7 @@ export default function DashboardIndex() {
         ) : (
           <View
             style={{
-              backgroundColor: "#f8f6f6",
+              backgroundColor: colors.cardAlt,
               borderRadius: 24,
               padding: 24,
               marginBottom: 24,
@@ -385,7 +335,7 @@ export default function DashboardIndex() {
             {/* Header row */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
               <View>
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2 }}>
+                <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textMuted, letterSpacing: 1.2 }}>
                   TOTAL EXPENSE • {now.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()}
                 </Text>
                 <AnimatedNumber
@@ -411,17 +361,17 @@ export default function DashboardIndex() {
             {/* Last Month & Yearly */}
             <View style={{ flexDirection: "row", gap: 24 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#9ca3af", letterSpacing: 1.2, marginBottom: 4 }}>LAST MONTH</Text>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: colors.textMuted, letterSpacing: 1.2, marginBottom: 4 }}>LAST MONTH</Text>
                 <AnimatedNumber
                   value={lastMonthExpenses}
-                  style={{ fontSize: 18, fontWeight: "800", color: "#0d121b" }}
+                  style={{ fontSize: 18, fontWeight: "800", color: colors.text }}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#9ca3af", letterSpacing: 1.2, marginBottom: 4 }}>YEARLY TOTAL</Text>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: colors.textMuted, letterSpacing: 1.2, marginBottom: 4 }}>ALL TIME</Text>
                 <AnimatedNumber
-                  value={thisYearExpenses}
-                  style={{ fontSize: 18, fontWeight: "800", color: "#0d121b" }}
+                  value={allTimeExpenses}
+                  style={{ fontSize: 18, fontWeight: "800", color: colors.text }}
                 />
               </View>
             </View>
@@ -480,11 +430,12 @@ export default function DashboardIndex() {
               categoryIcons={categoryIcons}
               categoryColors={categoryColors}
               allTransactions={allTransactions}
+              themeColors={colors}
             />
 
-            <MerchantBreakdown allTransactions={allTransactions} />
+            <MerchantBreakdown allTransactions={allTransactions} themeColors={colors} />
 
-            <SpendingTrends transactions={transactions} />
+            <SpendingTrends transactions={transactions} themeColors={colors} />
 
             {/* Recent Transactions */}
             <View style={{ marginBottom: 200 }}>
@@ -498,7 +449,7 @@ export default function DashboardIndex() {
                 }}
               >
                 <Text
-                  style={{ fontSize: 18, fontWeight: "bold", color: "#0d121b" }}
+                  style={{ fontSize: 18, fontWeight: "bold", color: colors.text }}
                 >
                   Recent Transactions
                 </Text>
@@ -531,7 +482,7 @@ export default function DashboardIndex() {
                 ) : (
                   <View
                     style={{
-                      backgroundColor: "white",
+                      backgroundColor: colors.card,
                       borderRadius: 12,
                       padding: 40,
                       paddingVertical: 100,
@@ -615,13 +566,6 @@ export default function DashboardIndex() {
         onTransactionUpdated={() => {
           setShowEditModal(false);
           setSelectedTransaction(null);
-        }}
-      />
-
-      <TransactionApprovalModal
-        visible={showApprovalModal}
-        onClose={() => {
-          setShowApprovalModal(false);
         }}
       />
 

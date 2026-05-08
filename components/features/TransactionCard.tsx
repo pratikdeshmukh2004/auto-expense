@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { Animated, PanResponder, Text, TouchableOpacity, View } from 'react-native';
 import { Transaction } from '@/services/TransactionService';
 import { getRelativeTime } from '@/utils/dateUtils';
+import { useTheme } from '../../providers/ThemeProvider';
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -32,6 +33,7 @@ export default function TransactionCard({
   selectionMode,
   onLongPress
 }: TransactionCardProps) {
+  const { colors } = useTheme();
   const translateX = useRef(new Animated.Value(0)).current;
   
   const panResponder = PanResponder.create({
@@ -67,13 +69,9 @@ export default function TransactionCard({
         top: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backgroundColor: colors.card,
         borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        opacity: 0.6,
       }} />
       
       {/* Action Buttons */}
@@ -91,13 +89,7 @@ export default function TransactionCard({
         }}>
           {onDuplicate && (
             <TouchableOpacity 
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 8,
-              }}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}
               onPress={onDuplicate}
             >
               <Ionicons name="copy" size={20} color="#10b981" />
@@ -105,13 +97,7 @@ export default function TransactionCard({
           )}
           {onEdit && (
             <TouchableOpacity 
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 8,
-              }}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}
               onPress={onEdit}
             >
               <Ionicons name="create" size={20} color="#3b82f6" />
@@ -119,12 +105,7 @@ export default function TransactionCard({
           )}
           {onDelete && (
             <TouchableOpacity 
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
               onPress={onDelete}
             >
               <Ionicons name="trash" size={20} color="#ef4444" />
@@ -137,7 +118,7 @@ export default function TransactionCard({
       <Animated.View
         style={{
           transform: [{ translateX }],
-          backgroundColor: isSelected ? 'rgba(234, 40, 49, 0.05)' : 'white',
+          backgroundColor: isSelected ? 'rgba(234, 40, 49, 0.05)' : colors.card,
           borderRadius: 12,
           padding: 16,
           shadowColor: '#000',
@@ -150,50 +131,50 @@ export default function TransactionCard({
         }}
         {...(onEdit || onDuplicate || onDelete ? panResponder.panHandlers : {})}
       >
-    <TouchableOpacity
-      onPress={() => selectionMode && onToggleSelect ? onToggleSelect() : router.push(`/transactions/details?id=${transaction.id}`)}
-      onLongPress={onLongPress}
-      style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
-        <View style={{
-          width: 48,
-          height: 48,
-          borderRadius: 12,
-          backgroundColor: 'rgba(234, 42, 51, 0.1)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <Ionicons 
-            name={categoryIcons[transaction.category] || 'storefront'} 
-            size={24} 
-            color={categoryColors[transaction.category] || '#ea2a33'} 
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} ellipsizeMode="tail">
-            {transaction.merchant}
-          </Text>
-          <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>
-            {transaction.paymentMethod || 'Cash'} • {showRelativeTime ? getRelativeTime(transaction.timestamp) : new Date(transaction.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-          </Text>
-        </View>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Text style={{ 
-          fontSize: 16, 
-          fontWeight: 'bold', 
-          color: transaction.type === 'income' ? '#10b981' : '#ea2a33' 
-        }}>
-          {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount}
-        </Text>
-        <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
-      </View>
-    </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => selectionMode && onToggleSelect ? onToggleSelect() : router.push(`/transactions/details?id=${transaction.id}`)}
+          onLongPress={onLongPress}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              backgroundColor: colors.primaryBg,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Ionicons 
+                name={categoryIcons[transaction.category] || 'storefront'} 
+                size={24} 
+                color={categoryColors[transaction.category] || '#ea2a33'} 
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
+                {transaction.merchant}
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textSecondary, marginTop: 4 }}>
+                {transaction.paymentMethod || 'Cash'} • {showRelativeTime ? getRelativeTime(transaction.timestamp) : new Date(transaction.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              </Text>
+            </View>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Text style={{ 
+              fontSize: 16, 
+              fontWeight: 'bold', 
+              color: transaction.type === 'income' ? '#10b981' : '#ea2a33' 
+            }}>
+              {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </View>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );

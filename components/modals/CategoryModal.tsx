@@ -1,3 +1,4 @@
+import { useTheme } from '../../providers/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View, Dimensions, Alert, Animated, PanResponder } from 'react-native';
@@ -13,6 +14,7 @@ interface CategoryModalProps {
 }
 
 export default function CategoryModal({ visible, onClose, onSave, category, isAddMode = false }: CategoryModalProps) {
+  const { colors: themeColors } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState('#EA2831');
@@ -155,7 +157,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
         onPress={onClose}
       >
       <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-      <Animated.View style={{ backgroundColor: '#f8f6f6', borderTopLeftRadius: 32, borderTopRightRadius: 32, height: screenHeight * 0.9, transform: [{ translateY: pan.y }] }}>
+      <Animated.View style={{ backgroundColor: themeColors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, height: screenHeight * 0.9, transform: [{ translateY: pan.y }] }}>
         {/* Handle */}
         <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }} {...panResponder.panHandlers}>
           <View style={{
@@ -174,7 +176,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
           paddingHorizontal: 24,
           paddingVertical: 16,
         }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>{isAddMode ? 'Add Category' : 'Edit Category'}</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: themeColors.text }}>{isAddMode ? 'Add Category' : 'Edit Category'}</Text>
           <TouchableOpacity onPress={onClose} style={{
             width: 40,
             height: 40,
@@ -182,7 +184,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <Ionicons name="close" size={24} color="#1f2937" />
+            <Ionicons name="close" size={24} color={themeColors.text} />
           </TouchableOpacity>
         </View>
 
@@ -203,7 +205,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
 
           {/* Icon Selection */}
           <View style={{ marginTop: 20 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 12 }}>Choose Icon</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: themeColors.text, marginBottom: 12 }}>Choose Icon</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingVertical: 4 }}>
               <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 4 }}>
                 {icons.map((icon) => (
@@ -214,14 +216,14 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
                       width: 48,
                       height: 48,
                       borderRadius: 12,
-                      backgroundColor: selectedIcon === icon ? `${selectedColor}20` : '#f3f4f6',
+                      backgroundColor: selectedIcon === icon ? `${selectedColor}20` : themeColors.chipBg,
                       alignItems: 'center',
                       justifyContent: 'center',
                       borderWidth: selectedIcon === icon ? 2 : 1,
-                      borderColor: selectedIcon === icon ? selectedColor : '#e5e7eb',
+                      borderColor: selectedIcon === icon ? selectedColor : themeColors.border,
                     }}
                   >
-                    <Ionicons name={icon as any} size={24} color={selectedIcon === icon ? selectedColor : '#6b7280'} />
+                    <Ionicons name={icon as any} size={24} color={selectedIcon === icon ? selectedColor : themeColors.textSecondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -230,7 +232,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
 
           {/* Color Selection */}
           <View style={{ marginTop: 20 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 12 }}>Color Tag</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: themeColors.text, marginBottom: 12 }}>Color Tag</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingVertical: 4 }}>
               <View style={{ flexDirection: 'row', gap: 16, paddingHorizontal: 4 }}>
                 {colors.map((color) => (
@@ -276,18 +278,18 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
 
           {/* Name Input */}
           <View style={{ marginTop: 20 }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 }}>Category Name</Text>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: themeColors.text, marginBottom: 8 }}>Category Name</Text>
             <TextInput
               style={{
-                backgroundColor: 'white',
+                backgroundColor: themeColors.card,
                 borderRadius: 12,
                 paddingHorizontal: 16,
                 paddingVertical: 16,
                 fontSize: 16,
                 fontWeight: '500',
-                color: '#1f2937',
+                color: themeColors.text,
                 borderWidth: 1,
-                borderColor: '#e5e7eb',
+                borderColor: themeColors.border,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.05,
@@ -295,7 +297,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
                 elevation: 1,
               }}
               placeholder="e.g. Maintenance"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={themeColors.textMuted}
               value={name}
               onChangeText={setName}
               maxLength={20}
@@ -304,18 +306,18 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
 
           {/* Description Input */}
           <View style={{ marginTop: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 }}>Description</Text>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: themeColors.text, marginBottom: 8 }}>Description</Text>
             <TextInput
               style={{
-                backgroundColor: 'white',
+                backgroundColor: themeColors.card,
                 borderRadius: 12,
                 paddingHorizontal: 16,
                 paddingVertical: 16,
                 fontSize: 16,
                 fontWeight: '500',
-                color: '#1f2937',
+                color: themeColors.text,
                 borderWidth: 1,
-                borderColor: '#e5e7eb',
+                borderColor: themeColors.border,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.05,
@@ -323,7 +325,7 @@ export default function CategoryModal({ visible, onClose, onSave, category, isAd
                 elevation: 1,
               }}
               placeholder="e.g. Car repairs, fuel, insurance"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={themeColors.textMuted}
               value={description}
               onChangeText={setDescription}
             />

@@ -8,9 +8,11 @@ const { width: screenWidth } = Dimensions.get('window');
 
 interface MerchantBreakdownProps {
   allTransactions: any[];
+  themeColors?: any;
 }
 
-export default function MerchantBreakdown({ allTransactions = [] }: MerchantBreakdownProps) {
+export default function MerchantBreakdown({ allTransactions = [], themeColors }: MerchantBreakdownProps) {
+  const tc = themeColors || { card: 'white', text: '#0d121b', textSecondary: '#64748b', textMuted: '#9ca3af', chipBg: '#f1f5f9', chipActive: 'white' };
   const [selectedPeriod, setSelectedPeriod] = React.useState<'this_month' | 'last_month' | 'this_year' | 'all_time'>('this_month');
   const [merchants, setMerchants] = React.useState<any[]>([]);
   const animatedValues = React.useRef<Animated.Value[]>([]).current;
@@ -89,7 +91,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
 
   return (
     <View style={{
-      backgroundColor: 'white',
+      backgroundColor: tc.card,
       borderRadius: 16,
       padding: 20,
       marginBottom: 24,
@@ -100,9 +102,9 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
       elevation: 1,
     }}>
       <View style={{ flexDirection: 'column', gap: 16, marginBottom: 24 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Paid To Breakdown</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: tc.text }}>Paid To Breakdown</Text>
         <View style={{
-          backgroundColor: '#f1f5f9',
+          backgroundColor: tc.chipBg,
           padding: 4,
           borderRadius: 20,
           flexDirection: 'row',
@@ -115,7 +117,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 16,
-                backgroundColor: selectedPeriod === p.key ? 'white' : 'transparent',
+                backgroundColor: selectedPeriod === p.key ? tc.chipActive : 'transparent',
                 shadowColor: selectedPeriod === p.key ? '#000' : 'transparent',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: selectedPeriod === p.key ? 0.05 : 0,
@@ -127,7 +129,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
               <Text style={{
                 fontSize: 11,
                 fontWeight: selectedPeriod === p.key ? 'bold' : '500',
-                color: selectedPeriod === p.key ? '#0d121b' : '#64748b',
+                color: selectedPeriod === p.key ? tc.text : tc.textSecondary,
               }}>{p.label}</Text>
             </TouchableOpacity>
           ))}
@@ -146,7 +148,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
               shadowOpacity: 0.3,
               shadowRadius: 8,
               elevation: 4,
-              backgroundColor: '#f8fafc',
+              backgroundColor: tc.chipBg,
             }}>
               <Svg width={chartSize} height={chartSize} style={{ position: 'absolute' }}>
                 {merchants.map((merchant, index) => {
@@ -182,13 +184,13 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
                 right: isSmallScreen ? 12 : 16,
                 bottom: isSmallScreen ? 12 : 16,
                 borderRadius: (chartSize - (isSmallScreen ? 24 : 32)) / 2,
-                backgroundColor: 'white',
+                backgroundColor: tc.card,
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 10,
               }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>TOTAL</Text>
-                <Text style={{ fontSize: isSmallScreen ? 14 : 16, fontWeight: '800', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: tc.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }}>TOTAL</Text>
+                <Text style={{ fontSize: isSmallScreen ? 14 : 16, fontWeight: '800', color: tc.text }} numberOfLines={1} adjustsFontSizeToFit>
                   ₹{currentTotal % 1 === 0 ? currentTotal.toLocaleString("en-IN") : currentTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
@@ -221,7 +223,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0d121b' }} numberOfLines={1}>{merchant.name}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: tc.text }} numberOfLines={1}>{merchant.name}</Text>
                       <View style={{
                         width: 8,
                         height: 8,
@@ -229,19 +231,19 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
                         backgroundColor: colors[index % colors.length],
                       }} />
                     </View>
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '500', color: tc.textSecondary }}>
                       {merchant.percentage.toFixed(0)}% of total
                     </Text>
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 6, width: isSmallScreen ? 80 : 96 }}>
-                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: tc.text }} numberOfLines={1} adjustsFontSizeToFit>
                     ₹{merchant.amount % 1 === 0 ? merchant.amount.toLocaleString("en-IN") : merchant.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                   <View style={{
                     width: '100%',
                     height: 6,
-                    backgroundColor: '#f1f5f9',
+                    backgroundColor: tc.chipBg,
                     borderRadius: 3,
                     overflow: 'hidden',
                   }}>
@@ -263,7 +265,7 @@ export default function MerchantBreakdown({ allTransactions = [] }: MerchantBrea
       ) : (
         <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
           <Ionicons name="people-outline" size={48} color="#94a3b8" />
-          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>No data</Text>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: tc.textSecondary, marginTop: 12 }}>No data</Text>
           <Text style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>
             Add expenses to see merchant breakdown
           </Text>

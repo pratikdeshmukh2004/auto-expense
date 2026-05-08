@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../providers/ThemeProvider';
 import { TransactionCard } from '../../components/features';
 import { Shimmer } from '../../components/animations';
 import { TransactionFiltersModal, TransactionModal } from '../../components/modals';
@@ -13,6 +14,7 @@ import { useCategories, usePaymentMethods, useTransactions, useDeleteTransaction
 
 
 export default function TransactionsIndex() {
+  const { colors } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -355,7 +357,7 @@ export default function TransactionsIndex() {
           top: 0,
           bottom: 0,
           left: 0,
-          backgroundColor: 'rgba(255, 255, 255, 0.6)',
+          backgroundColor: colors.card,
           borderRadius: 16,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 1 },
@@ -417,7 +419,7 @@ export default function TransactionsIndex() {
         <Animated.View
           style={{
             transform: [{ translateX }],
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 16,
             padding: 14,
             shadowColor: '#000',
@@ -469,7 +471,7 @@ export default function TransactionsIndex() {
                 <Ionicons name={categoryIcons[transaction.category] || 'storefront'} size={24} color={categoryColors[transaction.category] || '#ea2a33'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={1} ellipsizeMode="tail">{transaction.merchant}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }} numberOfLines={1} ellipsizeMode="tail">{transaction.merchant}</Text>
                 <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280', marginTop: 4 }}>{transaction.category} • {getRelativeTime(transaction.timestamp)}</Text>
               </View>
             </View>
@@ -483,7 +485,7 @@ export default function TransactionsIndex() {
     );
   };
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -495,7 +497,7 @@ export default function TransactionsIndex() {
               }}>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#6b7280' }}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>{selectedTransactions.length} Selected</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>{selectedTransactions.length} Selected</Text>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={() => setShowBulkEditModal(true)} disabled={selectedTransactions.length === 0}>
                   <Ionicons name="create" size={24} color={selectedTransactions.length > 0 ? '#3b82f6' : '#d1d5db'} />
@@ -508,7 +510,7 @@ export default function TransactionsIndex() {
           ) : (
             <>
               <View>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Transactions</Text>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.text }}>Transactions</Text>
               </View>
               <TouchableOpacity 
                 style={{
@@ -521,7 +523,7 @@ export default function TransactionsIndex() {
                 }}
                 onPress={() => setShowFiltersModal(true)}
               >
-                <Ionicons name="options" size={24} color="#111827" />
+                <Ionicons name="options" size={24} color={colors.text} />
                 <View style={{
                   position: 'absolute',
                   top: 8,
@@ -531,7 +533,7 @@ export default function TransactionsIndex() {
                   backgroundColor: '#ea2a33',
                   borderRadius: 5,
                   borderWidth: 2,
-                  borderColor: '#f8f6f6',
+                  borderColor: colors.background,
                 }} />
               </TouchableOpacity>
             </>
@@ -542,7 +544,7 @@ export default function TransactionsIndex() {
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'white',
+          backgroundColor: colors.card,
           borderRadius: 12,
           paddingHorizontal: 16,
           height: 48,
@@ -557,7 +559,7 @@ export default function TransactionsIndex() {
           <TextInput
             placeholder="Search merchant or category..."
             placeholderTextColor="#9ca3af"
-            style={{ flex: 1, fontSize: 16, fontWeight: '500', color: '#111827' }}
+            style={{ flex: 1, fontSize: 16, fontWeight: '500', color: colors.text }}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -629,7 +631,7 @@ export default function TransactionsIndex() {
                     paddingHorizontal: 16,
                     height: 36,
                     borderRadius: 18,
-                    backgroundColor: isSelected ? '#ea2a33' : 'white',
+                    backgroundColor: isSelected ? '#ea2a33' : colors.card,
                     shadowColor: isSelected ? '#ea2a33' : '#000',
                     shadowOffset: { width: 0, height: isSelected ? 4 : 1 },
                     shadowOpacity: isSelected ? 0.25 : 0.05,
@@ -638,8 +640,8 @@ export default function TransactionsIndex() {
                   }}
                   onPress={onPress}
                 >
-                  <Ionicons name={filter.icon as any} size={16} color={isSelected ? 'white' : '#6b7280'} />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? 'white' : '#6b7280' }}>{filter.name}</Text>
+                  <Ionicons name={filter.icon as any} size={16} color={isSelected ? 'white' : colors.textSecondary} />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? 'white' : colors.textSecondary }}>{filter.name}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -650,10 +652,10 @@ export default function TransactionsIndex() {
         {/* Summary */}
         {!loading && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginBottom: 8 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
               {filteredTransactions.length} transactions
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#0d121b' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
               ₹{filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0).toLocaleString('en-IN')}
             </Text>
           </View>
@@ -685,7 +687,7 @@ export default function TransactionsIndex() {
                 <Text style={{
                   fontSize: 14,
                   fontWeight: '600',
-                  color: '#9ca3af',
+                  color: colors.textMuted,
                   marginBottom: 8,
                   paddingHorizontal: 4
                 }}>
@@ -723,7 +725,7 @@ export default function TransactionsIndex() {
             paddingTop: 60,
           }}>
             <Ionicons name="receipt-outline" size={64} color="#94a3b8" />
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#64748b', marginTop: 16 }}>No transactions found</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.textSecondary, marginTop: 16 }}>No transactions found</Text>
             <Text style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>Add your first transaction or adjust your search filters</Text>
           </View>
         )}
@@ -797,7 +799,7 @@ export default function TransactionsIndex() {
           justifyContent: 'flex-end',
         }}>
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             padding: 24,
@@ -806,7 +808,7 @@ export default function TransactionsIndex() {
             maxHeight: '60%',
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>Edit {selectedTransactions.length} Transactions</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Edit {selectedTransactions.length} Transactions</Text>
               <TouchableOpacity onPress={() => {
                 setShowBulkEditModal(false);
                 setBulkEditCategory(undefined);
@@ -923,7 +925,7 @@ export default function TransactionsIndex() {
           justifyContent: 'center',
         }}>
           <Animated.View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 32,
             width: '85%',
@@ -942,7 +944,7 @@ export default function TransactionsIndex() {
             }}>
               <Ionicons name="trash" size={40} color="#ef4444" />
             </View>
-            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 8 }}>
               {selectedTransactions.length > 0 ? `Delete ${selectedTransactions.length} Transactions?` : 'Delete Transaction?'}
             </Text>
             <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 28, lineHeight: 20 }}>
@@ -999,7 +1001,7 @@ export default function TransactionsIndex() {
           justifyContent: 'center',
         }}>
           <Animated.View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 32,
             width: '85%',
@@ -1018,7 +1020,7 @@ export default function TransactionsIndex() {
             }}>
               <Ionicons name="copy" size={40} color="#10b981" />
             </View>
-            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 }}>Duplicate Transaction?</Text>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 8 }}>Duplicate Transaction?</Text>
             <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 28, lineHeight: 20 }}>
               A copy of this transaction will be created with today's date and time.
             </Text>

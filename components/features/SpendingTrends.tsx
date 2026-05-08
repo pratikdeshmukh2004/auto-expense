@@ -4,10 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface SpendingTrendsProps {
   transactions: any[];
+  themeColors?: any;
 }
 
-export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
+export default function SpendingTrends({ transactions, themeColors }: SpendingTrendsProps) {
+  const tc = themeColors || { card: 'white', text: '#0d121b', textSecondary: '#64748b', textMuted: '#9ca3af', chipBg: '#f1f5f9', chipActive: 'white' };
   const [selectedPeriod, setSelectedPeriod] = React.useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [selectedBar, setSelectedBar] = React.useState<number | null>(null);
   const barAnimations = React.useRef<Animated.Value[]>([]).current;
 
   const getExpenseTransactions = () => transactions.filter(t => t.type === 'expense');
@@ -33,20 +36,21 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
   };
 
   const getMonthlyData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
-    const year = now.getFullYear();
-
-    return months.map((month, index) => {
+    const data = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
       const amount = getExpenseTransactions()
         .filter(t => {
-          const d = new Date(t.timestamp);
-          return d.getMonth() === index && d.getFullYear() === year;
+          const td = new Date(t.timestamp);
+          return td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         })
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-      return { label: month, amount };
-    });
+      data.push({ label, amount, isCurrentMonth: i === 0 });
+    }
+    return data;
   };
 
   const getYearlyData = () => {
@@ -77,6 +81,7 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
   // Reset animations on period change
   React.useEffect(() => {
     barAnimations.length = 0;
+    setSelectedBar(null);
     data.forEach(() => {
       const anim = new Animated.Value(0);
       barAnimations.push(anim);
@@ -96,7 +101,7 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
 
   return (
     <View style={{
-      backgroundColor: 'white',
+      backgroundColor: tc.card,
       borderRadius: 16,
       padding: 20,
       marginBottom: 24,
@@ -107,9 +112,9 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
       elevation: 1,
     }}>
       <View style={{ flexDirection: 'column', gap: 16, marginBottom: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Spending Trends</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: tc.text }}>Spending Trends</Text>
         <View style={{
-          backgroundColor: '#f1f5f9',
+          backgroundColor: tc.chipBg,
           padding: 4,
           borderRadius: 20,
           flexDirection: 'row',
@@ -122,7 +127,7 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
                 paddingHorizontal: 14,
                 paddingVertical: 6,
                 borderRadius: 16,
-                backgroundColor: selectedPeriod === p.key ? 'white' : 'transparent',
+                backgroundColor: selectedPeriod === p.key ? tc.chipActive : 'transparent',
                 shadowColor: selectedPeriod === p.key ? '#000' : 'transparent',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: selectedPeriod === p.key ? 0.05 : 0,
@@ -134,7 +139,7 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
               <Text style={{
                 fontSize: 11,
                 fontWeight: selectedPeriod === p.key ? 'bold' : '500',
-                color: selectedPeriod === p.key ? '#0d121b' : '#64748b',
+                color: selectedPeriod === p.key ? tc.text : tc.textSecondary,
               }}>{p.label}</Text>
             </TouchableOpacity>
           ))}
@@ -149,7 +154,7 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
               {Array.from({ length: 4 }).map((_, i) => (
                 <View key={i} style={{
                   borderBottomWidth: 1,
-                  borderBottomColor: '#f1f5f9',
+                  borderBottomColor: tc.chipBg,
                   width: '100%',
                   height: 0,
                 }} />
@@ -165,26 +170,54 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
                 }) || Math.max(barHeight, 4);
 
                 const isCurrentPeriod = (() => {
-                  const now = new Date();
-                  if (selectedPeriod === 'weekly') return index === (now.getDay() === 0 ? 6 : now.getDay() - 1);
-                  if (selectedPeriod === 'monthly') return index === now.getMonth();
-                  return item.label === String(now.getFullYear());
+                  if (selectedPeriod === 'weekly') {
+                    const now = new Date();
+                    return index === (now.getDay() === 0 ? 6 : now.getDay() - 1);
+                  }
+                  if (selectedPeriod === 'monthly') return (item as any).isCurrentMonth === true;
+                  return item.label === String(new Date().getFullYear());
                 })();
 
+                const isSelected = selectedBar === index;
+
                 return (
-                  <View key={index} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: 6 }}>
+                  <TouchableOpacity
+                    key={index}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: 6, overflow: 'visible' }}
+                    onPress={() => setSelectedBar(isSelected ? null : index)}
+                    activeOpacity={0.7}
+                  >
+                    {isSelected && item.amount > 0 && (
+                      <View style={{
+                        backgroundColor: '#EA2831',
+                        paddingHorizontal: 14,
+                        paddingVertical: 5,
+                        borderRadius: 6,
+                        minWidth: 50,
+                        alignItems: 'center',
+                      }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: 'white', textAlign: 'center' }}>
+                          {item.amount >= 100000 
+                            ? `${Math.round(item.amount / 100000)}L`
+                            : item.amount >= 1000
+                              ? `${Math.round(item.amount / 1000)}K`
+                              : `₹${Math.round(item.amount)}`
+                          }
+                        </Text>
+                      </View>
+                    )}
                     <Animated.View style={{
                       width: selectedPeriod === 'yearly' ? 24 : selectedPeriod === 'monthly' ? 10 : 14,
-                      backgroundColor: isCurrentPeriod ? '#EA2831' : 'rgba(234, 40, 49, 0.3)',
+                      backgroundColor: isSelected ? '#EA2831' : isCurrentPeriod ? '#EA2831' : 'rgba(234, 40, 49, 0.3)',
                       borderRadius: 4,
                       height: animatedHeight,
                     }} />
                     <Text style={{
                       fontSize: selectedPeriod === 'monthly' ? 8 : 10,
-                      fontWeight: isCurrentPeriod ? 'bold' : '500',
-                      color: isCurrentPeriod ? '#0d121b' : '#9ca3af',
+                      fontWeight: isCurrentPeriod || isSelected ? 'bold' : '500',
+                      color: isSelected ? '#EA2831' : isCurrentPeriod ? tc.text : tc.textMuted,
                     }}>{item.label}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>

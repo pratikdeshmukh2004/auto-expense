@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from '../../providers/ThemeProvider';
 
 interface DateTimePickerModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ export default function DateTimePickerModal({
   onSelectDateTime,
   initialDate = new Date(),
 }: DateTimePickerModalProps) {
+  const { colors } = useTheme();
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [selectedHour, setSelectedHour] = useState(initialDate.getHours());
   const [selectedMinute, setSelectedMinute] = useState(
@@ -237,7 +239,7 @@ export default function DateTimePickerModal({
         onPress={onClose}
       >
         <TouchableOpacity
-          style={styles.container}
+          style={[styles.container, { backgroundColor: colors.background }]}
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
         >
@@ -246,11 +248,11 @@ export default function DateTimePickerModal({
           >
             {/* Drag Handle */}
             <View style={styles.dragHandle} {...panResponder.panHandlers}>
-              <View style={styles.handle} />
+              <View style={[styles.handle, { backgroundColor: colors.textMuted }]} />
             </View>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Select Date</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Select Date</Text>
             </View>
 
             <ScrollView
@@ -265,7 +267,7 @@ export default function DateTimePickerModal({
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={styles.currentDate}>
+                  <Text style={[styles.currentDate, { color: colors.text }]}>
                     {formatCurrentDateTime().date},{" "}
                     <Text style={styles.currentTime}>
                       {formatCurrentDateTime().time}
@@ -275,7 +277,7 @@ export default function DateTimePickerModal({
                     {selectedHour < 12 ? "AM" : "PM"}
                   </Text>
                 </View>
-                <Text style={styles.currentDay}>
+                <Text style={[styles.currentDay, { color: colors.textSecondary }]}>
                   {getTimePeriod(selectedHour)}
                 </Text>
               </View>
@@ -288,7 +290,7 @@ export default function DateTimePickerModal({
                     <TouchableOpacity onPress={() => navigateMonth("prev")}>
                       <Ionicons name="chevron-back" size={20} color="#9ca3af" />
                     </TouchableOpacity>
-                    <Text style={styles.monthText}>{formatMonthYear()}</Text>
+                    <Text style={[styles.monthText, { color: colors.text }]}>{formatMonthYear()}</Text>
                     <TouchableOpacity onPress={() => navigateMonth("next")}>
                       <Ionicons
                         name="chevron-forward"
@@ -310,6 +312,7 @@ export default function DateTimePickerModal({
                       key={index}
                       style={[
                         styles.dateCard,
+                        { backgroundColor: colors.card, borderColor: colors.border },
                         index === selectedDateIndex && styles.selectedDateCard,
                       ]}
                       onPress={() => {
@@ -320,6 +323,7 @@ export default function DateTimePickerModal({
                       <Text
                         style={[
                           styles.dayText,
+                          { color: colors.textMuted },
                           index === selectedDateIndex && styles.selectedDayText,
                         ]}
                       >
@@ -328,6 +332,7 @@ export default function DateTimePickerModal({
                       <Text
                         style={[
                           styles.dateNumber,
+                          { color: colors.textSecondary },
                           index === selectedDateIndex &&
                             styles.selectedDateNumber,
                         ]}
@@ -351,7 +356,7 @@ export default function DateTimePickerModal({
                   </View>
                   <View style={styles.digitalTimeContainer}>
                     <View style={styles.timeInputGroup}>
-                      <Text style={styles.timeDisplay}>
+                      <Text style={[styles.timeDisplay, { color: colors.text }]}>
                         {(selectedHour === 0
                           ? 12
                           : selectedHour > 12
@@ -362,14 +367,14 @@ export default function DateTimePickerModal({
                           .padStart(2, "0")}
                       </Text>
                     </View>
-                    <Text style={styles.timeSeparator}>:</Text>
+                    <Text style={[styles.timeSeparator, { color: colors.textMuted }]}>:</Text>
                     <View style={styles.timeInputGroup}>
-                      <Text style={styles.timeDisplay}>
+                      <Text style={[styles.timeDisplay, { color: colors.text }]}>
                         {selectedMinute.toString().padStart(2, "0")}
                       </Text>
                     </View>
                     <View style={styles.ampmContainer}>
-                      <Text style={styles.ampmText}>
+                      <Text style={[styles.ampmText, { color: colors.textMuted }]}>
                         {selectedHour < 12 ? "AM" : "PM"}
                       </Text>
                     </View>
@@ -385,7 +390,7 @@ export default function DateTimePickerModal({
                     value={sliderValue}
                     onValueChange={updateTimeFromSlider}
                     minimumTrackTintColor="#EA2831"
-                    maximumTrackTintColor="#e5e7eb"
+                    maximumTrackTintColor={colors.border}
                     thumbStyle={styles.sliderThumbStyle}
                   />
                   <View style={styles.sliderLabels}>

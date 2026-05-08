@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput,
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useCategories, usePaymentMethods, useTransactions } from '@/hooks/useQueries';
+import { useTheme } from '../../providers/ThemeProvider';
 import Shimmer from '../animations/Shimmer';
 
 interface TransactionFiltersModalProps {
@@ -18,6 +19,7 @@ interface TransactionFiltersModalProps {
 }
 
 export default function TransactionFiltersModal({ visible, onClose, onApplyFilters, currentFilters }: TransactionFiltersModalProps) {
+  const { colors } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState('Today');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
@@ -150,7 +152,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
         <Animated.View 
           style={[
             styles.container,
-            { transform: [{ translateY: pan.y }] }
+            { transform: [{ translateY: pan.y }], backgroundColor: colors.background }
           ]}
         >
           {/* Drag Handle */}
@@ -158,39 +160,39 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
             style={styles.dragHandle}
             {...handlePanResponder.panHandlers}
           >
-            <View style={styles.handle} />
+            <View style={[styles.handle, { backgroundColor: colors.textMuted }]} />
           </View>
 
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Filters</Text>
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.title, { color: colors.text }]}>Filters</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#6b7280" />
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Time Period */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Time Period</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Time Period</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
                 {periods.map((period) => (
                   <TouchableOpacity
                     key={period}
                     style={[
-                      styles.chip,
+                      styles.chip, { backgroundColor: colors.card, borderColor: colors.border },
                       selectedPeriod === period && styles.activeChip
                     ]}
                     onPress={() => setSelectedPeriod(period)}
                   >
                     {period === 'Custom Range' && (
-                      <Ionicons name="calendar" size={18} color={selectedPeriod === period ? '#EA2831' : '#374151'} />
+                      <Ionicons name="calendar" size={18} color={selectedPeriod === period ? '#EA2831' : colors.text} />
                     )}
                     {selectedPeriod === period && period !== 'Custom Range' && (
                       <Ionicons name="checkmark" size={18} color="#EA2831" />
                     )}
                     <Text style={[
-                      styles.chipText,
+                      styles.chipText, { color: colors.text },
                       selectedPeriod === period && styles.activeChipText
                     ]}>
                       {period}
@@ -200,11 +202,11 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
               </ScrollView>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Categories */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Categories</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Categories</Text>
               {loading ? (
                 <View style={styles.chipsWrap}>
                   <Shimmer width={80} height={34} borderRadius={16} />
@@ -218,7 +220,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   <TouchableOpacity
                     key={category.id}
                     style={[
-                      styles.categoryChip,
+                      styles.categoryChip, { backgroundColor: colors.card, borderColor: colors.border },
                       selectedCategories.includes(category.name) && styles.activeCategoryChip
                     ]}
                     onPress={() => toggleCategory(category.name)}
@@ -226,10 +228,10 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     <Ionicons 
                       name={category.icon as any} 
                       size={18} 
-                      color={selectedCategories.includes(category.name) ? category.color : '#9ca3af'} 
+                      color={selectedCategories.includes(category.name) ? category.color : colors.textMuted} 
                     />
                     <Text style={[
-                      styles.categoryChipText,
+                      styles.categoryChipText, { color: colors.text },
                       selectedCategories.includes(category.name) && styles.activeCategoryChipText
                     ]}>
                       {category.name}
@@ -237,21 +239,21 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
-                  style={[styles.categoryChip, { borderStyle: 'dashed' }]}
+                  style={[styles.categoryChip, { backgroundColor: colors.card, borderColor: colors.border }, { borderStyle: 'dashed' }]}
                   onPress={() => {/* Add category logic */}}
                 >
-                  <Ionicons name="add" size={18} color="#9ca3af" />
-                  <Text style={styles.categoryChipText}>Add New</Text>
+                  <Ionicons name="add" size={18} color={colors.textMuted} />
+                  <Text style={[styles.categoryChipText, { color: colors.textSecondary }]}>Add New</Text>
                 </TouchableOpacity>
               </View>
               )}
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Payment Methods */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Payment Methods</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Methods</Text>
               {loading ? (
                 <View style={styles.chipsWrap}>
                   <Shimmer width={70} height={34} borderRadius={16} />
@@ -264,7 +266,7 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   <TouchableOpacity
                     key={payment.id}
                     style={[
-                      styles.categoryChip,
+                      styles.categoryChip, { backgroundColor: colors.card, borderColor: colors.border },
                       selectedPayments.includes(payment.name) && styles.activeCategoryChip
                     ]}
                     onPress={() => togglePayment(payment.name)}
@@ -272,10 +274,10 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                     <Ionicons 
                       name={payment.icon as any} 
                       size={18} 
-                      color={selectedPayments.includes(payment.name) ? payment.color : '#9ca3af'} 
+                      color={selectedPayments.includes(payment.name) ? payment.color : colors.textMuted} 
                     />
                     <Text style={[
-                      styles.categoryChipText,
+                      styles.categoryChipText, { color: colors.text },
                       selectedPayments.includes(payment.name) && styles.activeCategoryChipText
                     ]}>
                       {payment.name}
@@ -283,28 +285,28 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
-                  style={[styles.categoryChip, { borderStyle: 'dashed' }]}
+                  style={[styles.categoryChip, { backgroundColor: colors.card, borderColor: colors.border }, { borderStyle: 'dashed' }]}
                   onPress={() => {/* Add payment method logic */}}
                 >
-                  <Ionicons name="add" size={18} color="#9ca3af" />
-                  <Text style={styles.categoryChipText}>Add New</Text>
+                  <Ionicons name="add" size={18} color={colors.textMuted} />
+                  <Text style={[styles.categoryChipText, { color: colors.textSecondary }]}>Add New</Text>
                 </TouchableOpacity>
               </View>
               )}
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Top Merchants */}
             {topMerchants.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Top Merchants</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Merchants</Text>
                 <View style={styles.chipsWrap}>
                   {topMerchants.map((merchant) => (
                     <TouchableOpacity
                       key={merchant}
                       style={[
-                        styles.categoryChip,
+                        styles.categoryChip, { backgroundColor: colors.card, borderColor: colors.border },
                         selectedMerchants.includes(merchant) && styles.activeCategoryChip
                       ]}
                       onPress={() => toggleMerchant(merchant)}
@@ -312,10 +314,10 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
                       <Ionicons 
                         name="storefront" 
                         size={18} 
-                        color={selectedMerchants.includes(merchant) ? '#EA2831' : '#9ca3af'} 
+                        color={selectedMerchants.includes(merchant) ? '#EA2831' : colors.textMuted} 
                       />
                       <Text style={[
-                        styles.categoryChipText,
+                        styles.categoryChipText, { color: colors.text },
                         selectedMerchants.includes(merchant) && styles.activeCategoryChipText
                       ]}>
                         {merchant}
@@ -328,9 +330,9 @@ export default function TransactionFiltersModal({ visible, onClose, onApplyFilte
           </ScrollView>
 
           {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
-              <Text style={styles.resetText}>Reset</Text>
+          <View style={[styles.footer, { borderTopColor: colors.border }]}>
+            <TouchableOpacity onPress={resetFilters} style={[styles.resetButton, { borderColor: colors.border }]}>
+              <Text style={[styles.resetText, { color: colors.textSecondary }]}>Reset</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={applyFilters} style={styles.applyButton}>
               <Text style={styles.applyText}>Apply Filters</Text>

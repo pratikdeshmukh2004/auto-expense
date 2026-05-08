@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../providers/ThemeProvider';
 import { PaymentMethod, PaymentMethodService } from '@/services/PaymentMethodService';
 import { Transaction, TransactionService } from '@/services/TransactionService';
 import Shimmer from '../animations/Shimmer';
@@ -27,6 +28,7 @@ interface TransactionModalProps {
 }
 
 export default function TransactionModal({ visible, onClose, transaction, prefillData, onTransactionUpdated, onTransactionAdded }: TransactionModalProps) {
+  const { colors } = useTheme();
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -224,7 +226,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
         >
         <Animated.View 
           style={{
-            backgroundColor: '#f8f6f6',
+            backgroundColor: colors.background,
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
             height: '90%',
@@ -260,9 +262,9 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
             paddingVertical: 8,
           }}>
             <TouchableOpacity onPress={onClose}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#6b7280' }}>Cancel</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#181111' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
               {isEditMode ? 'Edit Transaction' : 'Add Transaction'}
             </Text>
             <View style={{ width: 48 }} />
@@ -286,24 +288,24 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
               <Text style={{
                 fontSize: 12,
                 fontWeight: 'bold',
-                color: '#9ca3af',
+                color: colors.textMuted,
                 textTransform: 'uppercase',
                 letterSpacing: 2,
                 marginBottom: 6,
               }}>Enter Amount</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#181111', marginRight: 4, marginTop: 4 }}>₹</Text>
+                <Text style={{ fontSize: 40, fontWeight: 'bold', color: colors.text, marginRight: 4, marginTop: 4 }}>₹</Text>
                 <TextInput
                   style={{
                     fontSize: amount.length > 8 ? 28 : amount.length > 6 ? 36 : amount.length > 5 ? 44 : amount.length > 4 ? 52 : amount.length > 3 ? 56 : 60,
                     fontWeight: '800',
-                    color: '#181111',
+                    color: colors.text,
                     textAlign: 'center',
                     maxWidth: 240,
                     backgroundColor: 'transparent',
                   }}
                   placeholder="0"
-                  placeholderTextColor="#d1d5db"
+                  placeholderTextColor={colors.textMuted}
                   value={amount}
                   onChangeText={(text) => {
                     // Only allow numbers and decimal point
@@ -329,12 +331,12 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   <Text style={{
                     fontSize: 12,
                     fontWeight: 'bold',
-                    color: '#6b7280',
+                    color: colors.textSecondary,
                     textTransform: 'uppercase',
                     letterSpacing: 2,
                     marginLeft: 4,
                   }}>Merchant</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
                     {selectedDateTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     {' • '}
                     {selectedDateTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -343,7 +345,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'white',
+                  backgroundColor: colors.card,
                   borderRadius: 16,
                   borderWidth: 1,
                   borderColor: 'transparent',
@@ -354,20 +356,20 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                   elevation: 2,
                 }}>
                   <View style={{ paddingLeft: 16 }}>
-                    <Ionicons name="create-outline" size={20} color="#9ca3af" />
+                    <Ionicons name="create-outline" size={20} color={colors.textMuted} />
                   </View>
                   <TextInput
                     style={{
                       flex: 1,
                       fontSize: 16,
                       fontWeight: '500',
-                      color: '#181111',
+                      color: colors.text,
                       paddingVertical: 16,
                       paddingLeft: 12,
                       paddingRight: 8,
                     }}
                     placeholder="e.g. Starbucks, Uber, Rent"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textMuted}
                     value={merchant}
                     onChangeText={setMerchant}
                     maxLength={30}
@@ -386,7 +388,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 <Text style={{
                   fontSize: 12,
                   fontWeight: 'bold',
-                  color: '#6b7280',
+                  color: colors.textSecondary,
                   textTransform: 'uppercase',
                   letterSpacing: 2,
                   marginBottom: 12,
@@ -416,9 +418,9 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                           paddingVertical: 10,
                           paddingHorizontal: 14,
                           borderRadius: 20,
-                          backgroundColor: selectedCategory === category.name ? category.color : 'white',
+                          backgroundColor: selectedCategory === category.name ? category.color : colors.card,
                           borderWidth: 1,
-                          borderColor: selectedCategory === category.name ? category.color : '#e5e7eb',
+                          borderColor: selectedCategory === category.name ? category.color : colors.border,
                         }}
                         onPress={() => setSelectedCategory(category.name)}
                       >
@@ -430,7 +432,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                         <Text style={{
                           fontSize: 14,
                           fontWeight: '600',
-                          color: selectedCategory === category.name ? 'white' : '#374151',
+                          color: selectedCategory === category.name ? 'white' : colors.text,
                         }}>
                           {category.name}
                         </Text>
@@ -444,17 +446,17 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                         paddingVertical: 10,
                         paddingHorizontal: 14,
                         borderRadius: 20,
-                        backgroundColor: 'white',
+                        backgroundColor: colors.card,
                         borderWidth: 1,
-                        borderColor: '#e5e7eb',
+                        borderColor: colors.border,
                       }}
                       onPress={() => setShowCategoryModal(true)}
                     >
-                      <Ionicons name="add" size={18} color="#6b7280" />
+                      <Ionicons name="add" size={18} color={colors.textSecondary} />
                       <Text style={{
                         fontSize: 14,
                         fontWeight: '600',
-                        color: '#6b7280',
+                        color: colors.textSecondary,
                       }}>
                         Add
                       </Text>
@@ -469,7 +471,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 <Text style={{
                   fontSize: 12,
                   fontWeight: 'bold',
-                  color: '#6b7280',
+                  color: colors.textSecondary,
                   textTransform: 'uppercase',
                   letterSpacing: 2,
                   marginBottom: 12,
@@ -499,9 +501,9 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                           paddingVertical: 10,
                           paddingHorizontal: 14,
                           borderRadius: 20,
-                          backgroundColor: selectedPayment === method.name ? method.color : 'white',
+                          backgroundColor: selectedPayment === method.name ? method.color : colors.card,
                           borderWidth: 1,
-                          borderColor: selectedPayment === method.name ? method.color : '#e5e7eb',
+                          borderColor: selectedPayment === method.name ? method.color : colors.border,
                         }}
                         onPress={() => setSelectedPayment(method.name)}
                       >
@@ -513,7 +515,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                         <Text style={{
                           fontSize: 14,
                           fontWeight: '600',
-                          color: selectedPayment === method.name ? 'white' : '#374151',
+                          color: selectedPayment === method.name ? 'white' : colors.text,
                         }}>
                           {method.name}
                         </Text>
@@ -527,17 +529,17 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                         paddingVertical: 10,
                         paddingHorizontal: 14,
                         borderRadius: 20,
-                        backgroundColor: 'white',
+                        backgroundColor: colors.card,
                         borderWidth: 1,
-                        borderColor: '#e5e7eb',
+                        borderColor: colors.border,
                       }}
                       onPress={() => setShowPaymentModal(true)}
                     >
-                      <Ionicons name="add" size={18} color="#6b7280" />
+                      <Ionicons name="add" size={18} color={colors.textSecondary} />
                       <Text style={{
                         fontSize: 14,
                         fontWeight: '600',
-                        color: '#6b7280',
+                        color: colors.textSecondary,
                       }}>
                         Add
                       </Text>
@@ -552,7 +554,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 <Text style={{
                   fontSize: 12,
                   fontWeight: 'bold',
-                  color: '#6b7280',
+                  color: colors.textSecondary,
                   textTransform: 'uppercase',
                   letterSpacing: 2,
                   marginBottom: 10,
@@ -560,11 +562,11 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                 }}>Notes</Text>
                 <TextInput
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: colors.card,
                     borderRadius: 16,
                     padding: 16,
                     fontSize: 16,
-                    color: '#181111',
+                    color: colors.text,
                     height: 72,
                     textAlignVertical: 'top',
                     shadowColor: '#000',
@@ -574,7 +576,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
                     elevation: 2,
                   }}
                   placeholder="Add additional details..."
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.textMuted}
                   value={notes}
                   onChangeText={setNotes}
                   onFocus={() => {
@@ -599,7 +601,7 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
             bottom: 0,
             left: 0,
             right: 0,
-            backgroundColor: 'rgba(248, 246, 246, 0.95)',
+            backgroundColor: colors.background,
             paddingHorizontal: 24,
             paddingTop: 40,
             paddingBottom: 32,

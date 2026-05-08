@@ -7,9 +7,12 @@ import { TransactionModal } from '../../components/modals';
 import { Shimmer } from '../../components/animations';
 import { Transaction } from '../../services/TransactionService';
 import { useTransactions } from '../../hooks/useQueries';
+import { useTheme } from '../../providers/ThemeProvider';
 
 export default function TransactionDetailsScreen() {
+  const { colors } = useTheme();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const { id } = useLocalSearchParams();
   
   // Use TanStack Query to get transactions
@@ -22,7 +25,7 @@ export default function TransactionDetailsScreen() {
   const recentHistory = transaction ? transactions
     .filter(t => t.merchant === transaction.merchant && t.id !== transaction.id)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 3) : [];
+    : [];
     
   const yearlyTotal = transaction ? (() => {
     const now = new Date();
@@ -75,15 +78,15 @@ export default function TransactionDetailsScreen() {
 
   if (!transaction && !isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6', alignItems: 'center', justifyContent: 'center' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="receipt-outline" size={64} color="#94a3b8" />
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#64748b', marginTop: 16 }}>Transaction not found</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.textSecondary, marginTop: 16 }}>Transaction not found</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
       <View style={{
         flexDirection: 'row',
@@ -91,7 +94,7 @@ export default function TransactionDetailsScreen() {
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 16,
-        backgroundColor: 'rgba(248, 246, 246, 0.9)',
+        backgroundColor: colors.background,
       }}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -103,13 +106,13 @@ export default function TransactionDetailsScreen() {
             borderRadius: 20,
           }}
         >
-          <Ionicons name="chevron-back" size={24} color="#181111" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         
         <Text style={{
           fontSize: 18,
           fontWeight: 'bold',
-          color: '#181111',
+          color: colors.text,
           flex: 1,
           textAlign: 'center',
         }}>
@@ -137,7 +140,7 @@ export default function TransactionDetailsScreen() {
             </View>
             
             {/* Details Section Shimmer */}
-            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+            <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 20 }}>
               <Shimmer width={60} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
               <View style={{ gap: 20 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -156,13 +159,13 @@ export default function TransactionDetailsScreen() {
             </View>
             
             {/* Insights Section Shimmer */}
-            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+            <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 20 }}>
               <Shimmer width={120} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
               <Shimmer width="100%" height={96} borderRadius={8} />
             </View>
             
             {/* History Section Shimmer */}
-            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20 }}>
+            <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 20 }}>
               <Shimmer width={100} height={12} borderRadius={6} style={{ marginBottom: 16 }} />
               <Shimmer width="100%" height={60} borderRadius={8} style={{ marginBottom: 12 }} />
               <Shimmer width="100%" height={60} borderRadius={8} />
@@ -180,7 +183,7 @@ export default function TransactionDetailsScreen() {
             <Text style={{
               fontSize: 48,
               fontWeight: '800',
-              color: transaction.type === 'income' ? '#10b981' : '#181111',
+              color: transaction.type === 'income' ? '#10b981' : colors.text,
               lineHeight: 48,
               letterSpacing: -1,
             }}>
@@ -189,41 +192,16 @@ export default function TransactionDetailsScreen() {
             <Text style={{
               fontSize: 20,
               fontWeight: 'bold',
-              color: '#886364',
+              color: colors.textSecondary,
               marginTop: 4,
             }} numberOfLines={1} ellipsizeMode="tail">
               {transaction.merchant}
             </Text>
-            
-            {/* Status Badge */}
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.2)',
-              paddingHorizontal: 12,
-              paddingVertical: 4,
-              borderRadius: 25,
-              marginTop: 12,
-            }}>
-              <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-              <Text style={{
-                fontSize: 10,
-                fontWeight: 'bold',
-                color: '#15803d',
-                textTransform: 'uppercase',
-                letterSpacing: 1.5,
-              }}>
-                {transaction.status}
-              </Text>
-            </View>
           </View>
 
           {/* Details Section */}
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 20,
             shadowColor: '#000',
@@ -232,12 +210,12 @@ export default function TransactionDetailsScreen() {
             shadowRadius: 4,
             elevation: 2,
             borderWidth: 1,
-            borderColor: 'rgba(0, 0, 0, 0.05)',
+            borderColor: colors.border,
           }}>
             <Text style={{
               fontSize: 12,
               fontWeight: 'bold',
-              color: '#886364',
+              color: colors.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: 1.5,
               marginBottom: 16,
@@ -251,14 +229,14 @@ export default function TransactionDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{
                     padding: 8,
-                    backgroundColor: '#f8f6f6',
+                    backgroundColor: colors.chipBg,
                     borderRadius: 20,
                   }}>
-                    <Ionicons name="calendar-outline" size={20} color="#181111" style={{ opacity: 0.7 }} />
+                    <Ionicons name="calendar-outline" size={20} color={colors.text} style={{ opacity: 0.7 }} />
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#886364' }}>Date & Time</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textSecondary }}>Date & Time</Text>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#181111' }}>{new Date(transaction.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>{new Date(transaction.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
               </View>
 
               {/* Category */}
@@ -266,14 +244,14 @@ export default function TransactionDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{
                     padding: 8,
-                    backgroundColor: '#f8f6f6',
+                    backgroundColor: colors.chipBg,
                     borderRadius: 20,
                   }}>
-                    <Ionicons name="restaurant" size={20} color="#181111" style={{ opacity: 0.7 }} />
+                    <Ionicons name="restaurant" size={20} color={colors.text} style={{ opacity: 0.7 }} />
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#886364' }}>Category</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textSecondary }}>Category</Text>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#181111' }}>{transaction.category}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>{transaction.category}</Text>
               </View>
 
               {/* Payment Method */}
@@ -281,14 +259,14 @@ export default function TransactionDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{
                     padding: 8,
-                    backgroundColor: '#f8f6f6',
+                    backgroundColor: colors.chipBg,
                     borderRadius: 20,
                   }}>
-                    <Ionicons name="card" size={20} color="#181111" style={{ opacity: 0.7 }} />
+                    <Ionicons name="card" size={20} color={colors.text} style={{ opacity: 0.7 }} />
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#886364' }}>Payment</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textSecondary }}>Payment</Text>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#181111' }}>{transaction.paymentMethod || 'Unknown'}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>{transaction.paymentMethod || 'Unknown'}</Text>
               </View>
 
               {/* Sender */}
@@ -297,16 +275,16 @@ export default function TransactionDetailsScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <View style={{
                       padding: 8,
-                      backgroundColor: '#f8f6f6',
+                      backgroundColor: colors.chipBg,
                       borderRadius: 20,
                     }}>
-                      <Ionicons name="mail" size={20} color="#181111" style={{ opacity: 0.7 }} />
+                      <Ionicons name="mail" size={20} color={colors.text} style={{ opacity: 0.7 }} />
                     </View>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#886364' }}>Sender</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textSecondary }}>Sender</Text>
                   </View>
                   <View style={{ flex: 1, alignItems: 'flex-end', paddingLeft: 12 }}>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }} numberOfLines={1}>{transaction.sender.split('<')[0].trim()}</Text>
-                    <Text style={{ fontSize: 11, color: '#886364', marginTop: 2 }} numberOfLines={1}>{transaction.sender.match(/<(.+)>/)?.[1] || transaction.sender}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }} numberOfLines={1}>{transaction.sender.split('<')[0].trim()}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>{transaction.sender.match(/<(.+)>/)?.[1] || transaction.sender}</Text>
                   </View>
                 </View>
               )}
@@ -315,7 +293,7 @@ export default function TransactionDetailsScreen() {
             {/* Divider */}
             <View style={{
               height: 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.05)',
+              backgroundColor: colors.border,
               marginVertical: 20,
             }} />
 
@@ -327,7 +305,7 @@ export default function TransactionDetailsScreen() {
                   <Text style={{
                     fontSize: 14,
                     fontWeight: '500',
-                    color: '#181111',
+                    color: colors.text,
                     lineHeight: 20,
                     flex: 1,
                   }}>
@@ -345,7 +323,7 @@ export default function TransactionDetailsScreen() {
                   <Text style={{
                     fontSize: 14,
                     fontWeight: '500',
-                    color: '#9ca3af',
+                    color: colors.textMuted,
                     fontStyle: 'italic',
                   }}>
                     Add a note...
@@ -357,7 +335,7 @@ export default function TransactionDetailsScreen() {
 
           {/* Spending Insights */}
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 20,
             shadowColor: '#000',
@@ -366,14 +344,14 @@ export default function TransactionDetailsScreen() {
             shadowRadius: 4,
             elevation: 2,
             borderWidth: 1,
-            borderColor: 'rgba(0, 0, 0, 0.05)',
+            borderColor: colors.border,
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{
                   fontSize: 12,
                   fontWeight: 'bold',
-                  color: '#886364',
+                  color: colors.textSecondary,
                   textTransform: 'uppercase',
                   letterSpacing: 1.5,
                 }}>
@@ -382,7 +360,7 @@ export default function TransactionDetailsScreen() {
                 <Text style={{
                   fontSize: 14,
                   fontWeight: '600',
-                  color: '#181111',
+                  color: colors.text,
                   marginTop: 4,
                 }}>
                   This Year with {transaction.merchant}
@@ -434,7 +412,7 @@ export default function TransactionDetailsScreen() {
 
           {/* Merchant Summary */}
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 20,
             shadowColor: '#000',
@@ -443,12 +421,12 @@ export default function TransactionDetailsScreen() {
             shadowRadius: 4,
             elevation: 2,
             borderWidth: 1,
-            borderColor: 'rgba(0, 0, 0, 0.05)',
+            borderColor: colors.border,
           }}>
             <Text style={{
               fontSize: 12,
               fontWeight: 'bold',
-              color: '#886364',
+              color: colors.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: 1.5,
               marginBottom: 16,
@@ -458,27 +436,27 @@ export default function TransactionDetailsScreen() {
 
             <View style={{ gap: 14 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>Total Paid ({merchantSummary.totalCount} txns)</Text>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>Total Paid ({merchantSummary.totalCount} txns)</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }} numberOfLines={1} adjustsFontSizeToFit>
                   ₹{merchantSummary.totalPaid % 1 === 0 ? merchantSummary.totalPaid.toLocaleString('en-IN') : merchantSummary.totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
-              <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.04)' }} />
+              <View style={{ height: 1, backgroundColor: colors.border }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>This Year</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>This Year</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1} adjustsFontSizeToFit>
                   ₹{merchantSummary.thisYearPaid % 1 === 0 ? merchantSummary.thisYearPaid.toLocaleString('en-IN') : merchantSummary.thisYearPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>This Month</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>This Month</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1} adjustsFontSizeToFit>
                   ₹{merchantSummary.thisMonthPaid % 1 === 0 ? merchantSummary.thisMonthPaid.toLocaleString('en-IN') : merchantSummary.thisMonthPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>Last Month</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>Last Month</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1} adjustsFontSizeToFit>
                   ₹{merchantSummary.lastMonthPaid % 1 === 0 ? merchantSummary.lastMonthPaid.toLocaleString('en-IN') : merchantSummary.lastMonthPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
@@ -487,7 +465,7 @@ export default function TransactionDetailsScreen() {
 
           {/* Recent History */}
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: colors.card,
             borderRadius: 24,
             padding: 20,
             shadowColor: '#000',
@@ -496,25 +474,22 @@ export default function TransactionDetailsScreen() {
             shadowRadius: 4,
             elevation: 2,
             borderWidth: 1,
-            borderColor: 'rgba(0, 0, 0, 0.05)',
+            borderColor: colors.border,
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <Text style={{
                 fontSize: 12,
                 fontWeight: 'bold',
-                color: '#886364',
+                color: colors.textSecondary,
                 textTransform: 'uppercase',
                 letterSpacing: 1.5,
               }}>
-                Recent History
+                Recent History ({recentHistory.length})
               </Text>
-              <TouchableOpacity>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#EA2831' }}>View All</Text>
-              </TouchableOpacity>
             </View>
             
             <View style={{ gap: 0 }}>
-              {recentHistory.length > 0 ? recentHistory.map((historyTransaction, index) => (
+              {recentHistory.length > 0 ? (showAllHistory ? recentHistory : recentHistory.slice(0, 5)).map((historyTransaction, index) => (
                 <TouchableOpacity 
                   key={historyTransaction.id} 
                   onPress={() => router.push(`/transactions/details?id=${historyTransaction.id}`)}
@@ -523,21 +498,31 @@ export default function TransactionDetailsScreen() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   paddingVertical: 12,
-                  borderBottomWidth: index < recentHistory.length - 1 ? 1 : 0,
-                  borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+                  borderBottomWidth: index < (showAllHistory ? recentHistory.length : Math.min(recentHistory.length, 5)) - 1 ? 1 : 0,
+                  borderBottomColor: colors.border,
                 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }} numberOfLines={1} ellipsizeMode="tail">{historyTransaction.merchant}</Text>
-                    <Text style={{ fontSize: 12, color: '#886364' }}>{new Date(historyTransaction.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {historyTransaction.category}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }} numberOfLines={1} ellipsizeMode="tail">{historyTransaction.merchant}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>{new Date(historyTransaction.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {historyTransaction.category}</Text>
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#181111' }}>{historyTransaction.type === 'income' ? '+' : '-'}₹{historyTransaction.amount}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }}>{historyTransaction.type === 'income' ? '+' : '-'}₹{historyTransaction.amount}</Text>
                 </TouchableOpacity>
               )) : (
                 <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                   <Ionicons name="time-outline" size={32} color="#d1d5db" />
-                  <Text style={{ fontSize: 14, color: '#9ca3af', marginTop: 8 }}>No recent transactions</Text>
-                  <Text style={{ fontSize: 12, color: '#d1d5db', marginTop: 2 }}>with {transaction.merchant}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8 }}>No recent transactions</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>with {transaction.merchant}</Text>
                 </View>
+              )}
+              {recentHistory.length > 5 && (
+                <TouchableOpacity
+                  onPress={() => setShowAllHistory(!showAllHistory)}
+                  style={{ alignItems: 'center', paddingVertical: 12, marginTop: 8 }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#EA2831' }}>
+                    {showAllHistory ? 'Show Less' : `Show More (${recentHistory.length - 5} more)`}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           </View>

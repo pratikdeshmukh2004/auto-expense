@@ -1,3 +1,4 @@
+import { useTheme } from '../../providers/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -8,6 +9,7 @@ import { PaymentMethod } from '../../services/PaymentMethodService';
 import { usePaymentMethods } from '../../hooks/useQueries';
 
 export default function PaymentMethodsScreen() {
+  const { colors } = useTheme();
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
@@ -42,14 +44,14 @@ export default function PaymentMethodsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f6f6' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 16,
-        backgroundColor: 'rgba(248, 246, 246, 0.9)',
+        backgroundColor: colors.background,
       }}>
         <TouchableOpacity onPress={() => router.back()} style={{
           width: 40,
@@ -58,14 +60,14 @@ export default function PaymentMethodsScreen() {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <Ionicons name="arrow-back" size={24} color="#1f2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{
           flex: 1,
           textAlign: 'center',
           fontSize: 18,
           fontWeight: 'bold',
-          color: '#1f2937',
+          color: colors.text,
           paddingRight: 40,
         }}>Manage Payment Methods</Text>
       </View>
@@ -74,14 +76,14 @@ export default function PaymentMethodsScreen() {
         {/* Payment Methods List */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Your Payment Methods</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Your Payment Methods</Text>
             <View style={{
-              backgroundColor: '#f3f4f6',
+              backgroundColor: colors.chipBg,
               paddingHorizontal: 8,
               paddingVertical: 4,
               borderRadius: 6,
             }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: '#6b7280' }}>{paymentMethods.length} Total</Text>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textSecondary }}>{paymentMethods.length} Total</Text>
             </View>
           </View>
           
@@ -94,11 +96,11 @@ export default function PaymentMethodsScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 16,
-                  backgroundColor: 'white',
+                  backgroundColor: colors.card,
                   padding: 12,
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderColor: '#f3f4f6',
+                  borderColor: colors.border,
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.05,
@@ -118,7 +120,7 @@ export default function PaymentMethodsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1f2937' }}>{paymentMethod.name}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>{paymentMethod.name}</Text>
                     <View style={{
                       backgroundColor: `${paymentMethod.color}20`,
                       paddingHorizontal: 6,
@@ -130,7 +132,7 @@ export default function PaymentMethodsScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{paymentMethod.description || `${paymentMethod.name} payment method`}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{paymentMethod.description || `${paymentMethod.name} payment method`}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
               </TouchableOpacity>

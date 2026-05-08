@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../providers/ThemeProvider';
 
 interface SettingsBottomSheetProps {
   visible: boolean;
@@ -10,11 +11,13 @@ interface SettingsBottomSheetProps {
 }
 
 export default function SettingsBottomSheet({ visible, onClose, title, children }: SettingsBottomSheetProps) {
+  const { colors } = useTheme();
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' }}>
         <View style={{
-          backgroundColor: '#f8f6f6',
+          backgroundColor: colors.background,
           borderTopLeftRadius: 32,
           borderTopRightRadius: 32,
           height: '80%',
@@ -29,9 +32,9 @@ export default function SettingsBottomSheet({ visible, onClose, title, children 
             <View style={{
               width: 48,
               height: 6,
-              backgroundColor: '#d1d5db',
+              backgroundColor: colors.textMuted,
               borderRadius: 3,
-              opacity: 0.6,
+              opacity: 0.4,
             }} />
           </View>
 
@@ -43,9 +46,9 @@ export default function SettingsBottomSheet({ visible, onClose, title, children 
             paddingHorizontal: 24,
             paddingVertical: 16,
           }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>{title}</Text>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#6b7280" />
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
