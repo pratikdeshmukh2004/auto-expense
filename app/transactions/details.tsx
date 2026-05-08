@@ -21,34 +21,53 @@ export default function TransactionDetailsScreen() {
   // Calculate derived data
   const recentHistory = transaction ? transactions
     .filter(t => t.merchant === transaction.merchant && t.id !== transaction.id)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 3) : [];
     
-  const monthlyTotal = transaction ? (() => {
+  const yearlyTotal = transaction ? (() => {
     const now = new Date();
-    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyTransactions = transactions.filter(t => 
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const yearlyTransactions = transactions.filter(t => 
       t.merchant === transaction.merchant && 
-      new Date(t.timestamp) >= thisMonth
+      new Date(t.timestamp) >= startOfYear
     );
-    return monthlyTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    return yearlyTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
   })() : 0;
   
-  const weeklyData = transaction ? (() => {
+  const monthlyData = transaction ? (() => {
     const now = new Date();
-    const weeklyData = [];
-    for (let i = 6; i >= 0; i--) {
-      const weekStart = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const weekTransactions = transactions.filter(t => 
+    const data = [];
+    for (let i = 0; i < 12; i++) {
+      const monthStart = new Date(now.getFullYear(), i, 1);
+      const monthEnd = new Date(now.getFullYear(), i + 1, 0);
+      const monthTransactions = transactions.filter(t => 
         t.merchant === transaction.merchant &&
-        new Date(t.timestamp) >= weekStart &&
-        new Date(t.timestamp) < weekEnd
+        new Date(t.timestamp) >= monthStart &&
+        new Date(t.timestamp) <= monthEnd
       );
-      const weekTotal = weekTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      weeklyData.push(weekTotal);
+      const monthTotal = monthTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      data.push(monthTotal);
     }
-    return weeklyData;
+    return data;
   })() : [];
+
+  const merchantSummary = transaction ? (() => {
+    const now = new Date();
+    const merchantTxns = transactions.filter(t => t.merchant === transaction.merchant);
+    const totalPaid = merchantTxns.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const thisMonthPaid = merchantTxns
+      .filter(t => { const d = new Date(t.timestamp); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const lastMonthPaid = merchantTxns
+      .filter(t => { const d = new Date(t.timestamp); return d.getMonth() === lm && d.getFullYear() === ly; })
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const thisYearPaid = merchantTxns
+      .filter(t => new Date(t.timestamp).getFullYear() === now.getFullYear())
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    return { totalPaid, thisMonthPaid, lastMonthPaid, thisYearPaid, totalCount: merchantTxns.length };
+  })() : { totalPaid: 0, thisMonthPaid: 0, lastMonthPaid: 0, thisYearPaid: 0, totalCount: 0 };
 
   const handleTransactionUpdated = () => {
     setShowEditModal(false);
@@ -98,13 +117,12 @@ export default function TransactionDetailsScreen() {
         </Text>
         
         <TouchableOpacity 
-          onPress={() => setShowEditModal(true)}
           style={{
           paddingHorizontal: 12,
           paddingVertical: 8,
           borderRadius: 20,
         }}>
-          <Ionicons name="ellipsis-horizontal" size={24} color="#181111" />
+          <View style={{ width: 24 }} />
         </TouchableOpacity>
       </View>
 
@@ -351,7 +369,7 @@ export default function TransactionDetailsScreen() {
             borderColor: 'rgba(0, 0, 0, 0.05)',
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={{
                   fontSize: 12,
                   fontWeight: 'bold',
@@ -367,15 +385,15 @@ export default function TransactionDetailsScreen() {
                   color: '#181111',
                   marginTop: 4,
                 }}>
-                  This Month with {transaction.merchant}
+                  This Year with {transaction.merchant}
                 </Text>
               </View>
               <Text style={{
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: '800',
                 color: '#EA2831',
-              }}>
-                ₹{monthlyTotal.toFixed(2)}
+              }} numberOfLines={1} adjustsFontSizeToFit>
+                ₹{yearlyTotal % 1 === 0 ? yearlyTotal.toLocaleString("en-IN") : yearlyTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Text>
             </View>
 
@@ -385,22 +403,21 @@ export default function TransactionDetailsScreen() {
               flexDirection: 'row',
               alignItems: 'flex-end',
               justifyContent: 'space-between',
-              gap: 8,
+              gap: 4,
               paddingHorizontal: 4,
             }}>
-              {weeklyData.map((amount, index) => {
-                const maxAmount = Math.max(...weeklyData, 1);
+              {monthlyData.map((amount, index) => {
+                const maxAmount = Math.max(...monthlyData, 1);
                 const height = maxAmount > 0 ? `${(amount / maxAmount) * 100}%` : '0%';
-                const isCurrentWeek = index === weeklyData.length - 1;
+                const isCurrentMonth = index === new Date().getMonth();
                 
                 return (
                   <View key={index} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
                     <View style={{
-                      width: '100%',
+                      width: 8,
                       height: height,
-                      backgroundColor: isCurrentWeek ? '#EA2831' : 'rgba(234, 40, 49, 0.1)',
-                      borderTopLeftRadius: 2,
-                      borderTopRightRadius: 2,
+                      backgroundColor: isCurrentMonth ? '#EA2831' : 'rgba(234, 40, 49, 0.15)',
+                      borderRadius: 4,
                       minHeight: amount > 0 ? 4 : 0,
                     }} />
                   </View>
@@ -409,8 +426,62 @@ export default function TransactionDetailsScreen() {
             </View>
             
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-              <Text style={{ fontSize: 10, fontWeight: '500', color: '#886364', textTransform: 'uppercase', letterSpacing: 1 }}>Oct 1</Text>
-              <Text style={{ fontSize: 10, fontWeight: '500', color: '#886364', textTransform: 'uppercase', letterSpacing: 1 }}>Oct 24</Text>
+              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                <Text key={m} style={{ fontSize: 8, fontWeight: i === new Date().getMonth() ? 'bold' : '500', color: i === new Date().getMonth() ? '#0d121b' : '#886364' }}>{m}</Text>
+              ))}
+            </View>
+          </View>
+
+          {/* Merchant Summary */}
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 24,
+            padding: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 4,
+            elevation: 2,
+            borderWidth: 1,
+            borderColor: 'rgba(0, 0, 0, 0.05)',
+          }}>
+            <Text style={{
+              fontSize: 12,
+              fontWeight: 'bold',
+              color: '#886364',
+              textTransform: 'uppercase',
+              letterSpacing: 1.5,
+              marginBottom: 16,
+            }}>
+              Summary • {transaction.merchant}
+            </Text>
+
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>Total Paid ({merchantSummary.totalCount} txns)</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  ₹{merchantSummary.totalPaid % 1 === 0 ? merchantSummary.totalPaid.toLocaleString('en-IN') : merchantSummary.totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.04)' }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>This Year</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  ₹{merchantSummary.thisYearPaid % 1 === 0 ? merchantSummary.thisYearPaid.toLocaleString('en-IN') : merchantSummary.thisYearPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>This Month</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  ₹{merchantSummary.thisMonthPaid % 1 === 0 ? merchantSummary.thisMonthPaid.toLocaleString('en-IN') : merchantSummary.thisMonthPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: '#886364' }}>Last Month</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  ₹{merchantSummary.lastMonthPaid % 1 === 0 ? merchantSummary.lastMonthPaid.toLocaleString('en-IN') : merchantSummary.lastMonthPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -473,29 +544,6 @@ export default function TransactionDetailsScreen() {
         </View>
         )}
       </ScrollView>
-      
-      {/* Floating Edit Button */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          bottom: 32,
-          right: 24,
-          width: 56,
-          height: 56,
-          backgroundColor: '#EA2831',
-          borderRadius: 28,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#EA2831',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 15,
-          elevation: 8,
-        }}
-        onPress={() => setShowEditModal(true)}
-      >
-        <Ionicons name="pencil" size={24} color="white" />
-      </TouchableOpacity>
       
       <TransactionModal 
         visible={showEditModal} 

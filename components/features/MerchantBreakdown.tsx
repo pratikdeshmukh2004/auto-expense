@@ -4,33 +4,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 const { width: screenWidth } = Dimensions.get('window');
 
-interface CategoryBreakdownProps {
-  categoryBreakdown: {[category: string]: any[]};
-  incomeBreakdown: {[category: string]: any[]};
-  totalExpenses: number;
-  totalIncome: number;
-  categoryIcons: {[key: string]: string};
-  categoryColors: {[key: string]: string};
-  allTransactions?: any[];
+interface MerchantBreakdownProps {
+  allTransactions: any[];
 }
 
-export default function CategoryBreakdown({ 
-  categoryBreakdown, 
-  totalExpenses, 
-  categoryIcons, 
-  categoryColors,
-  allTransactions = [],
-}: CategoryBreakdownProps) {
+export default function MerchantBreakdown({ allTransactions = [] }: MerchantBreakdownProps) {
   const [selectedPeriod, setSelectedPeriod] = React.useState<'this_month' | 'last_month' | 'this_year' | 'all_time'>('this_month');
-  const [categories, setCategories] = React.useState<any[]>([]);
+  const [merchants, setMerchants] = React.useState<any[]>([]);
   const animatedValues = React.useRef<Animated.Value[]>([]).current;
   const isSmallScreen = screenWidth < 400;
   const chartSize = isSmallScreen ? 120 : 160;
   const radius = isSmallScreen ? 50 : 70;
   const circumference = 2 * Math.PI * radius;
+
+  const colors = ['#EA2831', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981'];
 
   React.useEffect(() => {
     const now = new Date();
@@ -58,22 +47,26 @@ export default function CategoryBreakdown({
     }
 
     const total = filtered.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const breakdown: {[key: string]: any[]} = {};
+    const breakdown: { [key: string]: number } = {};
     filtered.forEach(t => {
-      if (!breakdown[t.category]) breakdown[t.category] = [];
-      breakdown[t.category].push(t);
+      const merchant = t.merchant || 'Unknown';
+      breakdown[merchant] = (breakdown[merchant] || 0) + parseFloat(t.amount);
     });
 
-    const newCategories = Object.entries(breakdown).map(([name, transactions]) => {
-      const amount = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const percentage = total > 0 ? (amount / total) * 100 : 0;
-      return { name, amount, percentage, total };
-    }).sort((a, b) => b.amount - a.amount).slice(0, 3);
+    const newMerchants = Object.entries(breakdown)
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        percentage: total > 0 ? (amount / total) * 100 : 0,
+        total,
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
 
-    setCategories(newCategories);
+    setMerchants(newMerchants);
 
     animatedValues.length = 0;
-    newCategories.forEach(() => {
+    newMerchants.forEach(() => {
       const anim = new Animated.Value(0);
       animatedValues.push(anim);
       Animated.timing(anim, {
@@ -84,7 +77,7 @@ export default function CategoryBreakdown({
     });
   }, [allTransactions, selectedPeriod]);
 
-  const currentTotal = categories.length > 0 ? categories[0].total : 0;
+  const currentTotal = merchants.length > 0 ? merchants[0].total : 0;
   let offset = 0;
 
   const periods = [
@@ -107,7 +100,7 @@ export default function CategoryBreakdown({
       elevation: 1,
     }}>
       <View style={{ flexDirection: 'column', gap: 16, marginBottom: 24 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Category Breakdown</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Paid To Breakdown</Text>
         <View style={{
           backgroundColor: '#f1f5f9',
           padding: 4,
@@ -141,7 +134,7 @@ export default function CategoryBreakdown({
         </View>
       </View>
 
-      {categories.length > 0 ? (
+      {merchants.length > 0 ? (
         <View style={{ flexDirection: 'column', alignItems: 'center', gap: 24 }}>
           <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <View style={{
@@ -156,10 +149,10 @@ export default function CategoryBreakdown({
               backgroundColor: '#f8fafc',
             }}>
               <Svg width={chartSize} height={chartSize} style={{ position: 'absolute' }}>
-                {categories.map((category, index) => {
-                  const strokeDasharray = `${(category.percentage / 100) * circumference} ${circumference}`;
+                {merchants.map((merchant, index) => {
+                  const strokeDasharray = `${(merchant.percentage / 100) * circumference} ${circumference}`;
                   const strokeDashoffset = -offset;
-                  offset += (category.percentage / 100) * circumference;
+                  offset += (merchant.percentage / 100) * circumference;
 
                   const animatedStrokeDasharray = animatedValues[index]?.interpolate({
                     inputRange: [0, 1],
@@ -168,11 +161,11 @@ export default function CategoryBreakdown({
 
                   return (
                     <AnimatedCircle
-                      key={category.name}
+                      key={merchant.name}
                       cx={chartSize / 2}
                       cy={chartSize / 2}
                       r={radius}
-                      stroke={categoryColors[category.name] || ['#EA2831', '#8b5cf6', '#06b6d4'][index]}
+                      stroke={colors[index % colors.length]}
                       strokeWidth={isSmallScreen ? 15 : 20}
                       fill="transparent"
                       strokeDasharray={animatedStrokeDasharray}
@@ -195,93 +188,84 @@ export default function CategoryBreakdown({
                 zIndex: 10,
               }}>
                 <Text style={{ fontSize: 10, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>TOTAL</Text>
-                <Text style={{ fontSize: isSmallScreen ? 14 : 16, fontWeight: '800', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>₹{currentTotal % 1 === 0 ? currentTotal.toLocaleString("en-IN") : currentTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                <Text style={{ fontSize: isSmallScreen ? 14 : 16, fontWeight: '800', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                  ₹{currentTotal % 1 === 0 ? currentTotal.toLocaleString("en-IN") : currentTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
               </View>
             </View>
           </View>
 
           <View style={{ flex: 1, gap: 12, width: '100%' }}>
-            {categories.map((category, index) => {
-              const defaultColors = ['#EA2831', '#8b5cf6', '#06b6d4'];
-              const defaultBgColors = ['#fef2f2', '#f5f3ff', '#ecfeff'];
-              const defaultBorderColors = ['#fecaca', '#ddd6fe', '#a5f3fc'];
-              const defaultIcons = ['car', 'bag', 'restaurant'];
-
-              return (
-                <View key={category.name} style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingHorizontal: 8,
-                  marginHorizontal: -8,
-                  borderRadius: 8,
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: defaultBgColors[index],
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 1,
-                      borderColor: defaultBorderColors[index],
-                    }}>
-                      <Ionicons
-                        name={categoryIcons[category.name] || defaultIcons[index]}
-                        size={20}
-                        color={categoryColors[category.name] || defaultColors[index]}
-                      />
-                    </View>
-                    <View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0d121b' }}>{category.name}</Text>
-                        <View style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: categoryColors[category.name] || defaultColors[index],
-                        }} />
-                      </View>
-                      <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>
-                        {category.percentage.toFixed(0)}% of total
-                      </Text>
-                    </View>
+            {merchants.map((merchant, index) => (
+              <View key={merchant.name} style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingHorizontal: 8,
+                marginHorizontal: -8,
+                borderRadius: 8,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: `${colors[index % colors.length]}15`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: `${colors[index % colors.length]}30`,
+                  }}>
+                    <Ionicons name="person" size={18} color={colors[index % colors.length]} />
                   </View>
-                  <View style={{ alignItems: 'flex-end', gap: 6, width: isSmallScreen ? 80 : 96 }}>
-                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>₹{category.amount % 1 === 0 ? category.amount.toLocaleString("en-IN") : category.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                    <View style={{
-                      width: '100%',
-                      height: 6,
-                      backgroundColor: '#f1f5f9',
-                      borderRadius: 3,
-                      overflow: 'hidden',
-                    }}>
-                      <Animated.View style={{
-                        height: '100%',
-                        backgroundColor: categoryColors[category.name] || defaultColors[index],
-                        borderRadius: 3,
-                        width: animatedValues[index]?.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0%', `${category.percentage}%`],
-                        }) || `${category.percentage}%`,
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0d121b' }} numberOfLines={1}>{merchant.name}</Text>
+                      <View style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: colors[index % colors.length],
                       }} />
                     </View>
+                    <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>
+                      {merchant.percentage.toFixed(0)}% of total
+                    </Text>
                   </View>
                 </View>
-              );
-            })}
+                <View style={{ alignItems: 'flex-end', gap: 6, width: isSmallScreen ? 80 : 96 }}>
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#0d121b' }} numberOfLines={1} adjustsFontSizeToFit>
+                    ₹{merchant.amount % 1 === 0 ? merchant.amount.toLocaleString("en-IN") : merchant.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                  <View style={{
+                    width: '100%',
+                    height: 6,
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                  }}>
+                    <Animated.View style={{
+                      height: '100%',
+                      backgroundColor: colors[index % colors.length],
+                      borderRadius: 3,
+                      width: animatedValues[index]?.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', `${merchant.percentage}%`],
+                      }) || `${merchant.percentage}%`,
+                    }} />
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
       ) : (
         <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-          <Ionicons name="pie-chart-outline" size={48} color="#94a3b8" />
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>
-            No expense data
-          </Text>
-          <Text style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>
-            Add some expenses to see breakdown
+          <Ionicons name="people-outline" size={48} color="#94a3b8" />
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>No data</Text>
+          <Text style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>
+            Add expenses to see merchant breakdown
           </Text>
         </View>
       )}

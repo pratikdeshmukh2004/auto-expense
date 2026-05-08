@@ -7,134 +7,98 @@ interface SpendingTrendsProps {
 }
 
 export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
-  const [selectedType, setSelectedType] = React.useState<'income' | 'expenses' | 'net'>('net');
+  const [selectedPeriod, setSelectedPeriod] = React.useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const barAnimations = React.useRef<Animated.Value[]>([]).current;
-  // Calculate daily data from real transactions
-  const getDailyData = () => {
+
+  const getExpenseTransactions = () => transactions.filter(t => t.type === 'expense');
+
+  const getWeeklyData = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const today = new Date();
-    const weekStart = new Date(today.setDate(today.getDate() - today.getDay() + 1));
-    
+    const dayOfWeek = today.getDay();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    weekStart.setHours(0, 0, 0, 0);
+
     return days.map((day, index) => {
       const dayDate = new Date(weekStart);
       dayDate.setDate(weekStart.getDate() + index);
-      
-      const dayTransactions = transactions.filter(t => {
-        const tDate = new Date(t.timestamp);
-        return tDate.toDateString() === dayDate.toDateString();
-      });
-      
-      const income = dayTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const expenses = dayTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const total = income + expenses;
-      
-      return { day, income, expenses, total };
+
+      const amount = getExpenseTransactions()
+        .filter(t => new Date(t.timestamp).toDateString() === dayDate.toDateString())
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      return { label: day, amount };
     });
   };
 
-  const renderTrendBars = () => {
-    const dailyData = getDailyData();
-    const maxTotal = Math.max(...dailyData.map(d => {
-      if (selectedType === 'income') return d.income;
-      if (selectedType === 'expenses') return d.expenses;
-      return d.total;
-    }), 1);
-    
-    // Initialize animations
-    if (barAnimations.length === 0) {
-      dailyData.forEach(() => {
-        const anim = new Animated.Value(0);
-        barAnimations.push(anim);
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: false,
-        }).start();
-      });
-    }
-    
-    return dailyData.map((data, index) => {
-      const isActive = index === 3; // Thursday is active
-      let barHeight = 0;
-      let incomeHeight = 0;
-      let expenseHeight = 0;
-      
-      if (selectedType === 'income') {
-        barHeight = (data.income / maxTotal) * 144;
-        incomeHeight = barHeight;
-      } else if (selectedType === 'expenses') {
-        barHeight = (data.expenses / maxTotal) * 144;
-        expenseHeight = barHeight;
-      } else {
-        barHeight = (data.total / maxTotal) * 144;
-        incomeHeight = data.total > 0 ? (data.income / data.total) * barHeight : 0;
-        expenseHeight = barHeight - incomeHeight;
-      }
-      
-      const animatedHeight = barAnimations[index]?.interpolate({
-        inputRange: [0, 1],
-        outputRange: [8, Math.max(barHeight, 8)],
-      }) || Math.max(barHeight, 8);
-      
-      const animatedIncomeHeight = barAnimations[index]?.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, incomeHeight],
-      }) || incomeHeight;
-      
-      const animatedExpenseHeight = barAnimations[index]?.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, selectedType === 'net' ? expenseHeight : barHeight],
-      }) || (selectedType === 'net' ? expenseHeight : barHeight);
-      
-      return (
-        <View key={index} style={{ flex: 1, alignItems: 'center', gap: 12, height: '100%', justifyContent: 'flex-end' }}>
-          <Animated.View style={{
-            width: 12,
-            backgroundColor: '#f8fafc',
-            borderRadius: 2,
-            overflow: 'hidden',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
-            height: animatedHeight,
-            shadowColor: isActive ? '#000' : 'transparent',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isActive ? 0.1 : 0,
-            shadowRadius: 4,
-            elevation: isActive ? 2 : 0,
-          }}>
-            {selectedType === 'net' && (
-              <>
-                <Animated.View style={{
-                  width: '100%',
-                  backgroundColor: '#10b981',
-                  opacity: 0.9,
-                  height: animatedIncomeHeight
-                }} />
-                <View style={{ width: '100%', height: 1, backgroundColor: 'white' }} />
-              </>
-            )}
-            <Animated.View style={{
-              width: '100%',
-              backgroundColor: selectedType === 'income' ? '#10b981' : '#EA2831',
-              opacity: 0.9,
-              height: animatedExpenseHeight
-            }} />
-          </Animated.View>
-          <Text style={{
-            fontSize: 10,
-            fontWeight: isActive ? 'bold' : '600',
-            color: isActive ? '#0d121b' : '#64748b'
-          }}>{data.day}</Text>
-        </View>
-      );
+  const getMonthlyData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    const year = now.getFullYear();
+
+    return months.map((month, index) => {
+      const amount = getExpenseTransactions()
+        .filter(t => {
+          const d = new Date(t.timestamp);
+          return d.getMonth() === index && d.getFullYear() === year;
+        })
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      return { label: month, amount };
     });
   };
+
+  const getYearlyData = () => {
+    const now = new Date();
+    const years: { label: string; amount: number }[] = [];
+
+    for (let i = 2; i >= 0; i--) {
+      const year = now.getFullYear() - i;
+      const amount = getExpenseTransactions()
+        .filter(t => new Date(t.timestamp).getFullYear() === year)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      years.push({ label: String(year), amount });
+    }
+
+    return years;
+  };
+
+  const getData = () => {
+    if (selectedPeriod === 'weekly') return getWeeklyData();
+    if (selectedPeriod === 'yearly') return getYearlyData();
+    return getMonthlyData();
+  };
+
+  const data = getData();
+  const maxAmount = Math.max(...data.map(d => d.amount), 1);
+
+  // Reset animations on period change
+  React.useEffect(() => {
+    barAnimations.length = 0;
+    data.forEach(() => {
+      const anim = new Animated.Value(0);
+      barAnimations.push(anim);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [selectedPeriod, transactions.length]);
+
+  const periods = [
+    { key: 'weekly', label: 'Weekly' },
+    { key: 'monthly', label: 'Monthly' },
+    { key: 'yearly', label: 'Yearly' },
+  ] as const;
 
   return (
     <View style={{
       backgroundColor: 'white',
       borderRadius: 16,
-      padding: 24,
+      padding: 20,
       marginBottom: 24,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
@@ -142,128 +106,95 @@ export default function SpendingTrends({ transactions }: SpendingTrendsProps) {
       shadowRadius: 2,
       elevation: 1,
     }}>
-      <View style={{
-        flexDirection: 'column',
-        gap: 16,
-        marginBottom: 16,
-      }}>
-        <View>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Spending Trends</Text>
-          <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b' }}>Daily Net Activity</Text>
-        </View>
+      <View style={{ flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0d121b' }}>Spending Trends</Text>
         <View style={{
           backgroundColor: '#f1f5f9',
           padding: 4,
-          borderRadius: 8,
+          borderRadius: 20,
           flexDirection: 'row',
           alignSelf: 'flex-start',
         }}>
-          <TouchableOpacity 
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 6,
-              backgroundColor: selectedType === 'income' ? 'white' : 'transparent',
-              shadowColor: selectedType === 'income' ? '#000' : 'transparent',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: selectedType === 'income' ? 0.05 : 0,
-              shadowRadius: 2,
-              elevation: selectedType === 'income' ? 1 : 0,
-            }}
-            onPress={() => setSelectedType('income')}
-          >
-            <Text style={{ 
-              fontSize: 12, 
-              fontWeight: selectedType === 'income' ? 'bold' : '500', 
-              color: selectedType === 'income' ? '#0d121b' : '#64748b' 
-            }}>Income</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 6,
-              backgroundColor: selectedType === 'expenses' ? 'white' : 'transparent',
-              shadowColor: selectedType === 'expenses' ? '#000' : 'transparent',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: selectedType === 'expenses' ? 0.05 : 0,
-              shadowRadius: 2,
-              elevation: selectedType === 'expenses' ? 1 : 0,
-            }}
-            onPress={() => setSelectedType('expenses')}
-          >
-            <Text style={{ 
-              fontSize: 12, 
-              fontWeight: selectedType === 'expenses' ? 'bold' : '500', 
-              color: selectedType === 'expenses' ? '#0d121b' : '#64748b' 
-            }}>Expenses</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 6,
-              backgroundColor: selectedType === 'net' ? 'white' : 'transparent',
-              shadowColor: selectedType === 'net' ? '#000' : 'transparent',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: selectedType === 'net' ? 0.05 : 0,
-              shadowRadius: 2,
-              elevation: selectedType === 'net' ? 1 : 0,
-            }}
-            onPress={() => setSelectedType('net')}
-          >
-            <Text style={{ 
-              fontSize: 12, 
-              fontWeight: selectedType === 'net' ? 'bold' : '500', 
-              color: selectedType === 'net' ? '#0d121b' : '#64748b' 
-            }}>Net</Text>
-          </TouchableOpacity>
+          {periods.map(p => (
+            <TouchableOpacity
+              key={p.key}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: selectedPeriod === p.key ? 'white' : 'transparent',
+                shadowColor: selectedPeriod === p.key ? '#000' : 'transparent',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: selectedPeriod === p.key ? 0.05 : 0,
+                shadowRadius: 2,
+                elevation: selectedPeriod === p.key ? 1 : 0,
+              }}
+              onPress={() => setSelectedPeriod(p.key)}
+            >
+              <Text style={{
+                fontSize: 11,
+                fontWeight: selectedPeriod === p.key ? 'bold' : '500',
+                color: selectedPeriod === p.key ? '#0d121b' : '#64748b',
+              }}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
-      
-      <View style={{ height: 208, marginTop: 24, position: 'relative' }}>
-        {transactions.length > 0 ? (
+
+      <View style={{ height: 180, marginTop: 16, position: 'relative' }}>
+        {data.some(d => d.amount > 0) ? (
           <>
             {/* Grid lines */}
-            <View style={{ position: 'absolute', inset: 0, flexDirection: 'column', justifyContent: 'space-between' }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <View key={i} style={{ 
-                  borderBottomWidth: 1, 
-                  borderBottomColor: i === 4 ? '#d1d5db' : '#f1f5f9',
-                  borderStyle: i === 4 ? 'solid' : 'dashed',
-                  width: '100%', 
-                  height: 0 
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 24, flexDirection: 'column', justifyContent: 'space-between' }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <View key={i} style={{
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#f1f5f9',
+                  width: '100%',
+                  height: 0,
                 }} />
               ))}
             </View>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'end', justifyContent: 'space-between', height: '100%', paddingHorizontal: 8, paddingTop: 8, zIndex: 10 }}>
-              {renderTrendBars()}
+
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', paddingHorizontal: 4 }}>
+              {data.map((item, index) => {
+                const barHeight = (item.amount / maxAmount) * 130;
+                const animatedHeight = barAnimations[index]?.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [4, Math.max(barHeight, 4)],
+                }) || Math.max(barHeight, 4);
+
+                const isCurrentPeriod = (() => {
+                  const now = new Date();
+                  if (selectedPeriod === 'weekly') return index === (now.getDay() === 0 ? 6 : now.getDay() - 1);
+                  if (selectedPeriod === 'monthly') return index === now.getMonth();
+                  return item.label === String(now.getFullYear());
+                })();
+
+                return (
+                  <View key={index} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: 6 }}>
+                    <Animated.View style={{
+                      width: selectedPeriod === 'yearly' ? 24 : selectedPeriod === 'monthly' ? 10 : 14,
+                      backgroundColor: isCurrentPeriod ? '#EA2831' : 'rgba(234, 40, 49, 0.3)',
+                      borderRadius: 4,
+                      height: animatedHeight,
+                    }} />
+                    <Text style={{
+                      fontSize: selectedPeriod === 'monthly' ? 8 : 10,
+                      fontWeight: isCurrentPeriod ? 'bold' : '500',
+                      color: isCurrentPeriod ? '#0d121b' : '#9ca3af',
+                    }}>{item.label}</Text>
+                  </View>
+                );
+              })}
             </View>
           </>
         ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="bar-chart-outline" size={48} color="#94a3b8" />
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>
-              No transaction data
-            </Text>
-            <Text style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 4 }}>
-              Add transactions to see trends
-            </Text>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#64748b', marginTop: 12 }}>No expense data</Text>
           </View>
         )}
-      </View>
-        
-      {/* Legend */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#10b981' }} />
-          <Text style={{ fontSize: 12, fontWeight: '500', color: '#64748b' }}>Income</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#EA2831' }} />
-          <Text style={{ fontSize: 12, fontWeight: '500', color: '#64748b' }}>Expenses</Text>
-        </View>
       </View>
     </View>
   );

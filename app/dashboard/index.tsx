@@ -11,19 +11,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimatedBackground } from "../../components/animations";
-import { CategoryBreakdown, PaymentMethods, SpendingTrends, TransactionCard } from "../../components/features";
+import { CategoryBreakdown, MerchantBreakdown, SpendingTrends, TransactionCard } from "../../components/features";
 import { TransactionApprovalModal, TransactionModal } from "../../components/modals";
 import { Shimmer } from "../../components/animations";
 import {
   useAddTransaction,
   useCategories,
   useDeleteTransaction,
-  useIncomeByCategory,
-  useRecentTransactions,
-  useTotalExpenses,
-  useTotalIncome,
   useTransactions,
-  useTransactionsByCategory
 } from "../../hooks/useQueries";
 import { AuthService } from "../../services/AuthService";
 import {
@@ -33,17 +28,16 @@ import {
 const AnimatedNumber = ({
   value,
   prefix = "₹",
-  suffix = "",
+  style = {},
 }: {
-  value: string;
+  value: number;
   prefix?: string;
-  suffix?: string;
+  style?: any;
 }) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const targetValue = parseFloat(value);
 
   useEffect(() => {
-    let start = 0;
+    let start = displayValue;
     const duration = 1000;
     const startTime = Date.now();
 
@@ -51,7 +45,7 @@ const AnimatedNumber = ({
       const now = Date.now();
       const progress = Math.min((now - startTime) / duration, 1);
       const easeOut = 1 - Math.pow(1 - progress, 3);
-      const current = start + (targetValue - start) * easeOut;
+      const current = start + (value - start) * easeOut;
 
       setDisplayValue(current);
 
@@ -61,13 +55,15 @@ const AnimatedNumber = ({
     };
 
     animate();
-  }, [targetValue]);
+  }, [value]);
+
+  const formatted = displayValue % 1 === 0
+    ? Math.round(displayValue).toLocaleString("en-IN")
+    : displayValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Text style={{ fontSize: 20, fontWeight: "bold", color: "#0d121b" }}>
-      {prefix}
-      {displayValue.toFixed(2)}
-      {suffix}
+    <Text style={[{ fontSize: 20, fontWeight: "bold", color: "#0d121b" }, style]} numberOfLines={1} adjustsFontSizeToFit>
+      {prefix}{formatted}
     </Text>
   );
 };
@@ -85,29 +81,66 @@ export default function DashboardIndex() {
   const [transactionToDuplicate, setTransactionToDuplicate] =
     useState<Transaction | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [currentDate, setCurrentDate] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [hasPendingTransactions, setHasPendingTransactions] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   // TanStack Query hooks
   const queryClient = useQueryClient();
-  const { data: transactions = [], isLoading: transactionsLoading } =
+  const { data: allTransactions = [], isLoading: transactionsLoading } =
     useTransactions();
-  const { data: recentTransactions = [], isLoading: recentLoading } =
-    useRecentTransactions(4);
-  const { data: totalIncome = 0, isLoading: incomeLoading } = useTotalIncome();
-  const { data: totalExpenses = 0, isLoading: expensesLoading } =
-    useTotalExpenses();
-  const { data: categoryBreakdown = {}, isLoading: categoryLoading } =
-    useTransactionsByCategory();
-  const { data: incomeBreakdown = {}, isLoading: incomeBreakdownLoading } =
-    useIncomeByCategory();
   const { data: categories = [], isLoading: categoriesLoading } =
     useCategories();
+
+  const transactions = allTransactions;
+
+  const recentTransactions = [...transactions]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 4);
+
+  const now = new Date();
+  const thisMonthExpenses = allTransactions
+    .filter(t => t.type === 'expense' && new Date(t.timestamp).getMonth() === now.getMonth() && new Date(t.timestamp).getFullYear() === now.getFullYear())
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const lastMonthExpenses = (() => {
+    const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    return allTransactions
+      .filter(t => t.type === 'expense' && new Date(t.timestamp).getMonth() === lm && new Date(t.timestamp).getFullYear() === ly)
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  })();
+
+  const thisYearExpenses = allTransactions
+    .filter(t => t.type === 'expense' && new Date(t.timestamp).getFullYear() === now.getFullYear())
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const totalExpenses = thisMonthExpenses;
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const categoryBreakdown = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => {
+      if (!acc[t.category]) acc[t.category] = [];
+      acc[t.category].push(t);
+      return acc;
+    }, {} as { [key: string]: any[] });
+
+  const incomeBreakdown = transactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, t) => {
+      if (!acc[t.category]) acc[t.category] = [];
+      acc[t.category].push(t);
+      return acc;
+    }, {} as { [key: string]: any[] });
+
+  const loading = transactionsLoading && allTransactions.length === 0;
 
   // Mutations
   const addTransactionMutation = useAddTransaction();
@@ -119,16 +152,6 @@ export default function DashboardIndex() {
   const [categoryColors, setCategoryColors] = useState<{
     [key: string]: string;
   }>({});
-
-  const loading =
-    (transactionsLoading ||
-      recentLoading ||
-      incomeLoading ||
-      expensesLoading ||
-      categoryLoading ||
-      incomeBreakdownLoading ||
-      categoriesLoading) &&
-    transactions.length === 0;
 
   const handleDeleteTransaction = (id: string) => {
     setTransactionToDelete(id);
@@ -184,14 +207,6 @@ export default function DashboardIndex() {
   };
 
   useEffect(() => {
-    const now = new Date();
-    setCurrentDate(
-      now.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-    );
     loadUserInfo();
   }, []);
 
@@ -248,55 +263,19 @@ export default function DashboardIndex() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    try {
-      const SecureStore = await import("expo-secure-store");
-      const lastSync = await SecureStore.getItemAsync("last_email_sync");
-      
-      // Fetch emails in background without waiting
-      const { GmailService } = await import("../../services/GmailService");
-      GmailService.fetchTransactionEmails(lastSync || undefined).then(async () => {
-        await SecureStore.setItemAsync(
-          "last_email_sync",
-          new Date().toISOString(),
-        );
-      }).catch((error) => {
-      });
-    } catch (error) {
-    }
-    // Immediately refresh data from sheet/local storage
     await queryClient.invalidateQueries();
-    await loadUserInfo();
     setRefreshing(false);
   };
 
   const getMonthlyComparison = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastMonthYear =
-      currentMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const lastMonth = selectedMonth.getMonth() === 0 ? 11 : selectedMonth.getMonth() - 1;
+    const lastMonthYear = selectedMonth.getMonth() === 0 ? selectedMonth.getFullYear() - 1 : selectedMonth.getFullYear();
 
-    const currentMonthTransactions = transactions.filter((t) => {
+    const lastMonthTransactions = allTransactions.filter((t) => {
       const date = new Date(t.timestamp);
-      return (
-        date.getMonth() === currentMonth &&
-        date.getFullYear() === now.getFullYear()
-      );
+      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
     });
 
-    const lastMonthTransactions = transactions.filter((t) => {
-      const date = new Date(t.timestamp);
-      return (
-        date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear
-      );
-    });
-
-    const currentIncome = currentMonthTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const currentExpenses = currentMonthTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
     const lastIncome = lastMonthTransactions
       .filter((t) => t.type === "income")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
@@ -304,12 +283,8 @@ export default function DashboardIndex() {
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    const incomeChange =
-      lastIncome > 0 ? ((currentIncome - lastIncome) / lastIncome) * 100 : 0;
-    const expenseChange =
-      lastExpenses > 0
-        ? ((currentExpenses - lastExpenses) / lastExpenses) * 100
-        : 0;
+    const incomeChange = lastIncome > 0 ? ((totalIncome - lastIncome) / lastIncome) * 100 : 0;
+    const expenseChange = lastExpenses > 0 ? ((totalExpenses - lastExpenses) / lastExpenses) * 100 : 0;
 
     return { incomeChange, expenseChange };
   };
@@ -332,13 +307,8 @@ export default function DashboardIndex() {
         }}
       >
         <View>
-          <Text style={{ fontSize: 14, color: "#64748b", fontWeight: "500" }}>
-            {currentDate}
-          </Text>
           <Text style={{ fontSize: 20, fontWeight: "bold", color: "#0d121b" }}>
-            {isGuest
-              ? getGreeting()
-              : `${getGreeting()}, ${userName ? userName.split(" ")[0] : "User"}`}
+            {getGreeting()}
           </Text>
         </View>
         <TouchableOpacity
@@ -393,108 +363,67 @@ export default function DashboardIndex() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Income/Expense Cards */}
+        {/* Expense Card */}
         {initialLoading ? (
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
-            <Shimmer width="50%" height={112} borderRadius={16} />
-            <Shimmer width="50%" height={112} borderRadius={16} />
+          <View style={{ marginBottom: 24 }}>
+            <Shimmer width="100%" height={260} borderRadius={24} />
           </View>
         ) : (
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "white",
-                borderRadius: 16,
-                padding: 16,
-                height: 112,
-                justifyContent: "space-between",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "#dcfce7",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="arrow-down" size={16} color="#10b981" />
-                </View>
-                <Text
-                  style={{ fontSize: 12, fontWeight: "600", color: "#64748b" }}
-                >
-                  Income
+          <View
+            style={{
+              backgroundColor: "#f8f6f6",
+              borderRadius: 24,
+              padding: 24,
+              marginBottom: 24,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.08,
+              shadowRadius: 12,
+              elevation: 4,
+            }}
+          >
+            {/* Header row */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "600", color: "#9ca3af", letterSpacing: 1.2 }}>
+                  TOTAL EXPENSE • {now.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()}
                 </Text>
+                <AnimatedNumber
+                  value={thisMonthExpenses}
+                  style={{ fontSize: 28, fontWeight: "900", color: "#EA2831", marginTop: 8 }}
+                />
               </View>
-              <AnimatedNumber value={totalIncome.toFixed(2)} />
-              <Text
-                style={{ fontSize: 10, fontWeight: "500", color: "#10b981" }}
-              >
-                {(() => {
-                  const { incomeChange } = getMonthlyComparison();
-                  const sign = incomeChange >= 0 ? "+" : "";
-                  return `${sign}${incomeChange.toFixed(0)}% vs last month`;
-                })()}
-              </Text>
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: "rgba(234, 40, 49, 0.1)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                <Ionicons name="trending-down" size={20} color="#EA2831" />
+              </View>
             </View>
 
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "white",
-                borderRadius: 16,
-                padding: 16,
-                height: 112,
-                justifyContent: "space-between",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "rgba(234, 40, 49, 0.1)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="arrow-up" size={16} color="#EA2831" />
-                </View>
-                <Text
-                  style={{ fontSize: 12, fontWeight: "600", color: "#64748b" }}
-                >
-                  Expense
-                </Text>
+            {/* Divider */}
+            <View style={{ height: 1, backgroundColor: "rgba(234, 40, 49, 0.08)", marginVertical: 20 }} />
+
+            {/* Last Month & Yearly */}
+            <View style={{ flexDirection: "row", gap: 24 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#9ca3af", letterSpacing: 1.2, marginBottom: 4 }}>LAST MONTH</Text>
+                <AnimatedNumber
+                  value={lastMonthExpenses}
+                  style={{ fontSize: 18, fontWeight: "800", color: "#0d121b" }}
+                />
               </View>
-              <AnimatedNumber value={totalExpenses.toFixed(2)} />
-              <Text
-                style={{ fontSize: 10, fontWeight: "500", color: "#EA2831" }}
-              >
-                {(() => {
-                  const { expenseChange } = getMonthlyComparison();
-                  const sign = expenseChange >= 0 ? "+" : "";
-                  return `${sign}${expenseChange.toFixed(0)}% vs last month`;
-                })()}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#9ca3af", letterSpacing: 1.2, marginBottom: 4 }}>YEARLY TOTAL</Text>
+                <AnimatedNumber
+                  value={thisYearExpenses}
+                  style={{ fontSize: 18, fontWeight: "800", color: "#0d121b" }}
+                />
+              </View>
             </View>
           </View>
         )}
@@ -550,11 +479,12 @@ export default function DashboardIndex() {
               totalIncome={totalIncome}
               categoryIcons={categoryIcons}
               categoryColors={categoryColors}
+              allTransactions={allTransactions}
             />
 
-            <SpendingTrends transactions={transactions} />
+            <MerchantBreakdown allTransactions={allTransactions} />
 
-            <PaymentMethods transactions={transactions} />
+            <SpendingTrends transactions={transactions} />
 
             {/* Recent Transactions */}
             <View style={{ marginBottom: 200 }}>
@@ -593,11 +523,9 @@ export default function DashboardIndex() {
                       transaction={transaction}
                       categoryIcons={categoryIcons}
                       categoryColors={categoryColors}
-                      onEdit={() => handleEditTransaction(transaction)}
-                      onDuplicate={() =>
-                        handleDuplicateTransaction(transaction)
-                      }
-                      onDelete={() => handleDeleteTransaction(transaction.id)}
+                      onEdit={() => {}}
+                      onDuplicate={() => {}}
+                      onDelete={() => {}}
                     />
                   ))
                 ) : (

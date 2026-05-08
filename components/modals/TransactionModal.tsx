@@ -268,60 +268,6 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
             <View style={{ width: 48 }} />
           </View>
 
-          {/* Income/Expense Toggle */}
-          <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 6 }}>
-            <View style={{
-              flexDirection: 'row',
-              padding: 4,
-              backgroundColor: 'rgba(156, 163, 175, 0.6)',
-              borderRadius: 10,
-              position: 'relative',
-            }}>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  backgroundColor: transactionType === 'income' ? 'white' : 'transparent',
-                  shadowColor: transactionType === 'income' ? '#000' : 'transparent',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: transactionType === 'income' ? 0.1 : 0,
-                  shadowRadius: 2,
-                  elevation: transactionType === 'income' ? 2 : 0,
-                }}
-                onPress={() => setTransactionType('income')}
-              >
-                <Text style={{
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                  color: transactionType === 'income' ? '#EA2831' : '#6b7280',
-                }}>Income</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  backgroundColor: transactionType === 'expense' ? 'white' : 'transparent',
-                  shadowColor: transactionType === 'expense' ? '#000' : 'transparent',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: transactionType === 'expense' ? 0.1 : 0,
-                  shadowRadius: 2,
-                  elevation: transactionType === 'expense' ? 2 : 0,
-                }}
-                onPress={() => setTransactionType('expense')}
-              >
-                <Text style={{
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                  color: transactionType === 'expense' ? '#EA2831' : '#6b7280',
-                }}>Expense</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
           <ScrollView 
             ref={scrollViewRef}
             style={{ flex: 1 }} 

@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { StorageService } from '../services/StorageService';
 import { TransactionService } from '../services/TransactionService';
 
-// Query Keys
 export const QUERY_KEYS = {
   transactions: ['transactions'],
   categories: ['categories'],
@@ -16,135 +15,11 @@ export const QUERY_KEYS = {
   totalExpenses: ['transactions', 'totalExpenses'],
 };
 
-// Dashboard Data Hook
-export function useDashboardData() {
-  return useQuery({
-    queryKey: ['dashboard'],
-    queryFn: async () => {
-      const [transactions, categories] = await Promise.all([
-        StorageService.getTransactions(),
-        StorageService.getCategories()
-      ]);
-      
-      const recentTxns = transactions
-        .sort((a, b) => new Date(b.timestamp || b.date).getTime() - new Date(a.timestamp || a.date).getTime())
-        .slice(0, 4);
-      
-      const totalIncome = transactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-        
-      const totalExpenses = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-        
-      const categoryBreakdown = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((acc, transaction) => {
-          if (!acc[transaction.category]) {
-            acc[transaction.category] = [];
-          }
-          acc[transaction.category].push(transaction);
-          return acc;
-        }, {} as {[category: string]: any[]});
-        
-      const incomeBreakdown = transactions
-        .filter(t => t.type === 'income')
-        .reduce((acc, transaction) => {
-          if (!acc[transaction.category]) {
-            acc[transaction.category] = [];
-          }
-          acc[transaction.category].push(transaction);
-          return acc;
-        }, {} as {[category: string]: any[]});
-      
-      return {
-        transactions,
-        recentTransactions: recentTxns,
-        totalIncome,
-        totalExpenses,
-        categoryBreakdown,
-        incomeBreakdown,
-        categories
-      };
-    },
-  });
-}
-
-// Transaction Mutations
-export function useAddTransaction() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (transaction: any) => {
-      const newTransaction = {
-        ...transaction,
-        id: Date.now().toString(),
-        timestamp: transaction.date ? new Date(transaction.date) : new Date()
-      };
-      await StorageService.addTransaction(newTransaction);
-      return newTransaction;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactionsByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.incomeByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalIncome });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalExpenses });
-    },
-  });
-}
-
-export function useUpdateTransaction() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: any }) => 
-      TransactionService.updateTransaction(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactionsByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.incomeByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalIncome });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalExpenses });
-    },
-  });
-}
-
-export function useDeleteTransaction() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: StorageService.deleteTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactionsByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.incomeByCategory });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalIncome });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalExpenses });
-    },
-  });
-}
-
-// Category Hooks
-export function useCategories() {
-  return useQuery({
-    queryKey: QUERY_KEYS.categories,
-    queryFn: () => StorageService.getCategories(),
-  });
-}
-
 // Transaction Query Hooks
 export function useTransactions() {
   return useQuery({
     queryKey: QUERY_KEYS.transactions,
-    queryFn: async () => {
-      const result = await StorageService.getTransactions();
-      return result.filter(t => t.status !== 'rejected').map(t => ({
-        ...t,
-        timestamp: new Date(t.timestamp || t.date)
-      }));
-    },
+    queryFn: () => StorageService.getTransactions(),
   });
 }
 
@@ -154,8 +29,6 @@ export function useRecentTransactions(limit: number) {
     queryFn: async () => {
       const transactions = await StorageService.getTransactions();
       return transactions
-        .filter(t => t.status !== 'rejected')
-        .map(t => ({ ...t, timestamp: new Date(t.timestamp || t.date) }))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, limit);
     },
@@ -168,14 +41,12 @@ export function useTransactionsByCategory() {
     queryFn: async () => {
       const transactions = await StorageService.getTransactions();
       return transactions
-        .filter(t => t.type === 'expense' && t.status !== 'rejected')
-        .reduce((acc, transaction) => {
-          if (!acc[transaction.category]) {
-            acc[transaction.category] = [];
-          }
-          acc[transaction.category].push(transaction);
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => {
+          if (!acc[t.category]) acc[t.category] = [];
+          acc[t.category].push(t);
           return acc;
-        }, {} as {[category: string]: any[]});
+        }, {} as { [category: string]: any[] });
     },
   });
 }
@@ -186,14 +57,12 @@ export function useIncomeByCategory() {
     queryFn: async () => {
       const transactions = await StorageService.getTransactions();
       return transactions
-        .filter(t => t.type === 'income' && t.status !== 'rejected')
-        .reduce((acc, transaction) => {
-          if (!acc[transaction.category]) {
-            acc[transaction.category] = [];
-          }
-          acc[transaction.category].push(transaction);
+        .filter(t => t.type === 'income')
+        .reduce((acc, t) => {
+          if (!acc[t.category]) acc[t.category] = [];
+          acc[t.category].push(t);
           return acc;
-        }, {} as {[category: string]: any[]});
+        }, {} as { [category: string]: any[] });
     },
   });
 }
@@ -204,7 +73,7 @@ export function useTotalIncome() {
     queryFn: async () => {
       const transactions = await StorageService.getTransactions();
       return transactions
-        .filter(t => t.type === 'income' && t.status !== 'rejected')
+        .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
     },
   });
@@ -216,47 +85,72 @@ export function useTotalExpenses() {
     queryFn: async () => {
       const transactions = await StorageService.getTransactions();
       return transactions
-        .filter(t => t.type === 'expense' && t.status !== 'rejected')
+        .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
     },
   });
 }
 
-// Payment Method Hooks
-export function usePaymentMethods() {
-  return useQuery({
-    queryKey: QUERY_KEYS.paymentMethods,
-    queryFn: () => StorageService.getPaymentMethods(),
+// Transaction Mutations
+export function useAddTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (transaction: any) => {
+      await StorageService.addTransaction(transaction);
+      return transaction;
+    },
+    onSuccess: () => {
+      // Delay refetch to allow API to process the new transaction
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactionsByCategory });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.incomeByCategory });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalIncome });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.totalExpenses });
+      }, 2000);
+    },
   });
 }
 
-// Keywords Hooks
-export function useKeywords() {
-  return useQuery({
-    queryKey: QUERY_KEYS.keywords,
-    queryFn: StorageService.getKeywords,
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      TransactionService.updateTransaction(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
+    },
   });
 }
 
-// Approved Senders Hooks
-export function useApprovedSenders() {
-  return useQuery({
-    queryKey: QUERY_KEYS.approvedSenders,
-    queryFn: StorageService.getApprovedSenders,
+export function useDeleteTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => StorageService.deleteTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.transactions });
+    },
   });
 }
 
-// Category Mutations
+// Category Hooks
+export function useCategories() {
+  return useQuery({
+    queryKey: QUERY_KEYS.categories,
+    queryFn: () => StorageService.getCategories(),
+  });
+}
+
 export function useAddCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (category: any) => {
-      const newCategory = {
-        ...category,
-        id: Date.now().toString(),
-      };
       const categories = await StorageService.getCategories();
+      const newCategory = { ...category, id: Date.now().toString() };
       categories.push(newCategory);
       await StorageService.saveCategories(categories);
       return newCategory;
@@ -269,7 +163,7 @@ export function useAddCategory() {
 
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const categories = await StorageService.getCategories();
@@ -287,12 +181,11 @@ export function useUpdateCategory() {
 
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const categories = await StorageService.getCategories();
-      const filtered = categories.filter(cat => cat.id !== id);
-      await StorageService.saveCategories(filtered);
+      await StorageService.saveCategories(categories.filter(cat => cat.id !== id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories });
@@ -300,17 +193,21 @@ export function useDeleteCategory() {
   });
 }
 
-// Payment Method Mutations
+// Payment Method Hooks
+export function usePaymentMethods() {
+  return useQuery({
+    queryKey: QUERY_KEYS.paymentMethods,
+    queryFn: () => StorageService.getPaymentMethods(),
+  });
+}
+
 export function useAddPaymentMethod() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (method: any) => {
-      const newMethod = {
-        ...method,
-        id: Date.now().toString(),
-      };
       const methods = await StorageService.getPaymentMethods();
+      const newMethod = { ...method, id: Date.now().toString() };
       methods.push(newMethod);
       await StorageService.savePaymentMethods(methods);
       return newMethod;
@@ -323,11 +220,11 @@ export function useAddPaymentMethod() {
 
 export function useUpdatePaymentMethod() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const methods = await StorageService.getPaymentMethods();
-      const index = methods.findIndex(method => method.id === id);
+      const index = methods.findIndex(m => m.id === id);
       if (index !== -1) {
         methods[index] = { ...methods[index], ...updates };
         await StorageService.savePaymentMethods(methods);
@@ -341,15 +238,30 @@ export function useUpdatePaymentMethod() {
 
 export function useDeletePaymentMethod() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const methods = await StorageService.getPaymentMethods();
-      const filtered = methods.filter(method => method.id !== id);
-      await StorageService.savePaymentMethods(filtered);
+      await StorageService.savePaymentMethods(methods.filter(m => m.id !== id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.paymentMethods });
     },
+  });
+}
+
+// Keywords Hooks
+export function useKeywords() {
+  return useQuery({
+    queryKey: QUERY_KEYS.keywords,
+    queryFn: StorageService.getKeywords,
+  });
+}
+
+// Approved Senders Hooks
+export function useApprovedSenders() {
+  return useQuery({
+    queryKey: QUERY_KEYS.approvedSenders,
+    queryFn: StorageService.getApprovedSenders,
   });
 }

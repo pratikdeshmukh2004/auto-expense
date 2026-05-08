@@ -29,7 +29,7 @@ export default function TransactionsIndex() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [topMerchants, setTopMerchants] = useState<string[]>([]);
-  const [selectedDateFilter, setSelectedDateFilter] = useState('This Month');
+  const [selectedDateFilter, setSelectedDateFilter] = useState('Last 3 Months');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -130,11 +130,25 @@ export default function TransactionsIndex() {
         const transactionDate = new Date(t.timestamp);
         return transactionDate >= yesterday && transactionDate < today;
       });
+    } else if (selectedDateFilter === 'This Week') {
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      filtered = filtered.filter(t => new Date(t.timestamp) >= startOfWeek);
     } else if (selectedDateFilter === 'This Month') {
+      filtered = filtered.filter(t => new Date(t.timestamp) >= thisMonth);
+    } else if (selectedDateFilter === 'Last Month') {
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
       filtered = filtered.filter(t => {
-        const transactionDate = new Date(t.timestamp);
-        return transactionDate >= thisMonth;
+        const d = new Date(t.timestamp);
+        return d >= lastMonthStart && d <= lastMonthEnd;
       });
+    } else if (selectedDateFilter === 'Last 3 Months') {
+      const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      filtered = filtered.filter(t => new Date(t.timestamp) >= threeMonthsAgo);
+    } else if (selectedDateFilter === 'This Year') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      filtered = filtered.filter(t => new Date(t.timestamp) >= startOfYear);
     }
 
     // Category filtering
@@ -493,7 +507,9 @@ export default function TransactionsIndex() {
             </>
           ) : (
             <>
-              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Transactions</Text>
+              <View>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827' }}>Transactions</Text>
+              </View>
               <TouchableOpacity 
                 style={{
                   width: 40,
@@ -555,142 +571,92 @@ export default function TransactionsIndex() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
           <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 8, paddingBottom: 16 }}>
-            {/* Type filters */}
+            {/* All chips sorted: selected first */}
             {[
-              { name: 'Income', icon: 'arrow-down' },
-              { name: 'Expense', icon: 'arrow-up' }
-            ].map((filter) => (
-              <TouchableOpacity 
-                key={filter.name}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: selectedTypes.includes(filter.name.toLowerCase()) ? '#ea2a33' : 'white',
-                  shadowColor: selectedTypes.includes(filter.name.toLowerCase()) ? '#ea2a33' : '#000',
-                  shadowOffset: { width: 0, height: selectedTypes.includes(filter.name.toLowerCase()) ? 4 : 1 },
-                  shadowOpacity: selectedTypes.includes(filter.name.toLowerCase()) ? 0.25 : 0.05,
-                  shadowRadius: selectedTypes.includes(filter.name.toLowerCase()) ? 8 : 2,
-                  elevation: selectedTypes.includes(filter.name.toLowerCase()) ? 4 : 1,
-                }}
-                onPress={() => handleTypeSelect(filter.name.toLowerCase())}
-              >
-                <Ionicons name={filter.icon as any} size={16} color={selectedTypes.includes(filter.name.toLowerCase()) ? 'white' : '#6b7280'} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: selectedTypes.includes(filter.name.toLowerCase()) ? 'white' : '#6b7280' }}>{filter.name}</Text>
-              </TouchableOpacity>
-            ))}
-            
-            {/* Time filters */}
-            {[
-              { name: 'Today', icon: 'today' },
-              { name: 'Yesterday', icon: 'calendar' },
-              { name: 'This Week', icon: 'calendar-outline' },
-              { name: 'This Month', icon: 'calendar' },
-              { name: 'Last Month', icon: 'calendar-outline' },
-              { name: 'This Year', icon: 'calendar' }
-            ].map((filter) => (
-              <TouchableOpacity 
-                key={filter.name}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: selectedDateFilter === filter.name ? '#ea2a33' : 'white',
-                  shadowColor: selectedDateFilter === filter.name ? '#ea2a33' : '#000',
-                  shadowOffset: { width: 0, height: selectedDateFilter === filter.name ? 4 : 1 },
-                  shadowOpacity: selectedDateFilter === filter.name ? 0.25 : 0.05,
-                  shadowRadius: selectedDateFilter === filter.name ? 8 : 2,
-                  elevation: selectedDateFilter === filter.name ? 4 : 1,
-                }}
-                onPress={() => handleDateFilterSelect(filter.name)}
-              >
-                <Ionicons name={filter.icon as any} size={16} color={selectedDateFilter === filter.name ? 'white' : '#6b7280'} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: selectedDateFilter === filter.name ? 'white' : '#6b7280' }}>{filter.name}</Text>
-              </TouchableOpacity>
-            ))}
-            
-            {/* All categories */}
-            {categories.map((category) => (
-              <TouchableOpacity 
-                key={category.name}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: selectedCategories.includes(category.name) ? '#ea2a33' : 'white',
-                  shadowColor: selectedCategories.includes(category.name) ? '#ea2a33' : '#000',
-                  shadowOffset: { width: 0, height: selectedCategories.includes(category.name) ? 4 : 1 },
-                  shadowOpacity: selectedCategories.includes(category.name) ? 0.25 : 0.05,
-                  shadowRadius: selectedCategories.includes(category.name) ? 8 : 2,
-                  elevation: selectedCategories.includes(category.name) ? 4 : 1,
-                }}
-                onPress={() => handleCategorySelect(category.name)}
-              >
-                <Ionicons name={category.icon as any} size={16} color={selectedCategories.includes(category.name) ? 'white' : '#6b7280'} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: selectedCategories.includes(category.name) ? 'white' : '#6b7280' }}>{category.name}</Text>
-              </TouchableOpacity>
-            ))}
-            
-            {/* All payment methods */}
-            {paymentMethods.map((method) => (
-              <TouchableOpacity 
-                key={method.name}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: selectedPaymentMethods.includes(method.name) ? '#ea2a33' : 'white',
-                  shadowColor: selectedPaymentMethods.includes(method.name) ? '#ea2a33' : '#000',
-                  shadowOffset: { width: 0, height: selectedPaymentMethods.includes(method.name) ? 4 : 1 },
-                  shadowOpacity: selectedPaymentMethods.includes(method.name) ? 0.25 : 0.05,
-                  shadowRadius: selectedPaymentMethods.includes(method.name) ? 8 : 2,
-                  elevation: selectedPaymentMethods.includes(method.name) ? 4 : 1,
-                }}
-                onPress={() => handlePaymentMethodSelect(method.name)}
-              >
-                <Ionicons name={method.icon as any} size={16} color={selectedPaymentMethods.includes(method.name) ? 'white' : '#6b7280'} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: selectedPaymentMethods.includes(method.name) ? 'white' : '#6b7280' }}>{method.name}</Text>
-              </TouchableOpacity>
-            ))}
-            
-            {/* Top merchants */}
-            {topMerchants.map((merchant) => (
-              <TouchableOpacity 
-                key={merchant}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: selectedMerchants.includes(merchant) ? '#ea2a33' : 'white',
-                  shadowColor: selectedMerchants.includes(merchant) ? '#ea2a33' : '#000',
-                  shadowOffset: { width: 0, height: selectedMerchants.includes(merchant) ? 4 : 1 },
-                  shadowOpacity: selectedMerchants.includes(merchant) ? 0.25 : 0.05,
-                  shadowRadius: selectedMerchants.includes(merchant) ? 8 : 2,
-                  elevation: selectedMerchants.includes(merchant) ? 4 : 1,
-                }}
-                onPress={() => handleMerchantSelect(merchant)}
-              >
-                <Ionicons name="storefront" size={16} color={selectedMerchants.includes(merchant) ? 'white' : '#6b7280'} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: selectedMerchants.includes(merchant) ? 'white' : '#6b7280' }}>{merchant}</Text>
-              </TouchableOpacity>
-            ))}
+              ...[
+                { name: 'Today', icon: 'today', filterType: 'date' },
+                { name: 'Yesterday', icon: 'calendar', filterType: 'date' },
+                { name: 'This Week', icon: 'calendar-outline', filterType: 'date' },
+                { name: 'This Month', icon: 'calendar', filterType: 'date' },
+                { name: 'Last Month', icon: 'calendar-outline', filterType: 'date' },
+                { name: 'Last 3 Months', icon: 'calendar', filterType: 'date' },
+                { name: 'This Year', icon: 'calendar', filterType: 'date' }
+              ],
+              ...categories.map(c => ({ name: c.name, icon: c.icon, filterType: 'category' })),
+              ...paymentMethods.map(m => ({ name: m.name, icon: m.icon, filterType: 'payment' })),
+              ...topMerchants.map(m => ({ name: m, icon: 'storefront', filterType: 'merchant' }))
+            ]
+            .sort((a, b) => {
+              const aSelected = 
+                (a.filterType === 'type' && selectedTypes.includes(a.name.toLowerCase())) ||
+                (a.filterType === 'date' && selectedDateFilter === a.name) ||
+                (a.filterType === 'category' && selectedCategories.includes(a.name)) ||
+                (a.filterType === 'payment' && selectedPaymentMethods.includes(a.name)) ||
+                (a.filterType === 'merchant' && selectedMerchants.includes(a.name));
+              const bSelected = 
+                (b.filterType === 'type' && selectedTypes.includes(b.name.toLowerCase())) ||
+                (b.filterType === 'date' && selectedDateFilter === b.name) ||
+                (b.filterType === 'category' && selectedCategories.includes(b.name)) ||
+                (b.filterType === 'payment' && selectedPaymentMethods.includes(b.name)) ||
+                (b.filterType === 'merchant' && selectedMerchants.includes(b.name));
+              if (aSelected && !bSelected) return -1;
+              if (!aSelected && bSelected) return 1;
+              return 0;
+            })
+            .map((filter) => {
+              const isSelected = 
+                (filter.filterType === 'type' && selectedTypes.includes(filter.name.toLowerCase())) ||
+                (filter.filterType === 'date' && selectedDateFilter === filter.name) ||
+                (filter.filterType === 'category' && selectedCategories.includes(filter.name)) ||
+                (filter.filterType === 'payment' && selectedPaymentMethods.includes(filter.name)) ||
+                (filter.filterType === 'merchant' && selectedMerchants.includes(filter.name));
+              
+              const onPress = () => {
+                if (filter.filterType === 'type') handleTypeSelect(filter.name.toLowerCase());
+                else if (filter.filterType === 'date') handleDateFilterSelect(filter.name);
+                else if (filter.filterType === 'category') handleCategorySelect(filter.name);
+                else if (filter.filterType === 'payment') handlePaymentMethodSelect(filter.name);
+                else if (filter.filterType === 'merchant') handleMerchantSelect(filter.name);
+              };
+
+              return (
+                <TouchableOpacity 
+                  key={`${filter.filterType}-${filter.name}`}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: 16,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: isSelected ? '#ea2a33' : 'white',
+                    shadowColor: isSelected ? '#ea2a33' : '#000',
+                    shadowOffset: { width: 0, height: isSelected ? 4 : 1 },
+                    shadowOpacity: isSelected ? 0.25 : 0.05,
+                    shadowRadius: isSelected ? 8 : 2,
+                    elevation: isSelected ? 4 : 1,
+                  }}
+                  onPress={onPress}
+                >
+                  <Ionicons name={filter.icon as any} size={16} color={isSelected ? 'white' : '#6b7280'} />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isSelected ? 'white' : '#6b7280' }}>{filter.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </ScrollView>
+        )}
+
+        {/* Summary */}
+        {!loading && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginBottom: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280' }}>
+              {filteredTransactions.length} transactions
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#0d121b' }}>
+              ₹{filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0).toLocaleString('en-IN')}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -731,9 +697,9 @@ export default function TransactionsIndex() {
                     transaction={transaction}
                     categoryIcons={categoryIcons}
                     categoryColors={categoryColors}
-                    onEdit={() => handleEditTransaction(transaction)}
-                    onDuplicate={() => handleDuplicateTransaction(transaction)}
-                    onDelete={() => handleDeleteTransaction(transaction.id)}
+                    onEdit={() => {}}
+                    onDuplicate={() => {}}
+                    onDelete={() => {}}
                     isSelected={selectedTransactions.includes(transaction.id)}
                     onToggleSelect={() => toggleSelection(transaction.id)}
                     selectionMode={selectionMode}
