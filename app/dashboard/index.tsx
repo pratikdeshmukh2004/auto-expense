@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   Text,
@@ -11,10 +12,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimatedBackground } from "../../components/animations";
-import { CategoryBreakdown, MerchantBreakdown, SpendingTrends, TransactionCard } from "../../components/features";
+import { CategoryBreakdown, MerchantBreakdown, PaymentMethodBreakdown, SpendingTrends, TransactionCard } from "../../components/features";
 import { TransactionModal } from "../../components/modals";
-import { Shimmer } from "../../components/animations";
+import { Shimmer, DashboardLoadingView } from "../../components/animations";
 import { useTheme } from "../../providers/ThemeProvider";
+import { ApiService } from "../../services/ApiService";
 import {
   useAddTransaction,
   useCategories,
@@ -87,12 +89,24 @@ export default function DashboardIndex() {
 
   // TanStack Query hooks
   const queryClient = useQueryClient();
-  const { data: allTransactions = [], isLoading: transactionsLoading } =
+  const { data: allTransactions = [], isLoading: transactionsLoading, isError: transactionsError } =
     useTransactions();
   const { data: categories = [], isLoading: categoriesLoading } =
     useCategories();
 
   const transactions = allTransactions;
+
+  useEffect(() => {
+    if (transactionsError) {
+      ApiService.clearApiUrl().then(() => {
+        Alert.alert(
+          'Connection Failed',
+          'Unable to fetch transactions. Please re-enter your API URL.',
+          [{ text: 'OK', onPress: () => router.replace('/onboarding') }]
+        );
+      });
+    }
+  }, [transactionsError]);
 
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -306,6 +320,9 @@ export default function DashboardIndex() {
         </TouchableOpacity>
       </View>
 
+      {initialLoading ? (
+        <DashboardLoadingView />
+      ) : (
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}
         showsVerticalScrollIndicator={false}
@@ -314,11 +331,6 @@ export default function DashboardIndex() {
         }
       >
         {/* Expense Card */}
-        {initialLoading ? (
-          <View style={{ marginBottom: 24 }}>
-            <Shimmer width="100%" height={260} borderRadius={24} />
-          </View>
-        ) : (
           <View
             style={{
               backgroundColor: colors.cardAlt,
@@ -376,52 +388,7 @@ export default function DashboardIndex() {
               </View>
             </View>
           </View>
-        )}
 
-        {initialLoading ? (
-          <>
-            <Shimmer
-              width="100%"
-              height={200}
-              borderRadius={16}
-              style={{ marginBottom: 24 }}
-            />
-            <Shimmer
-              width="100%"
-              height={150}
-              borderRadius={16}
-              style={{ marginBottom: 24 }}
-            />
-            <Shimmer
-              width="100%"
-              height={120}
-              borderRadius={16}
-              style={{ marginBottom: 24 }}
-            />
-            <View style={{ marginBottom: 200 }}>
-              <Shimmer
-                width={150}
-                height={20}
-                borderRadius={8}
-                style={{ marginBottom: 16 }}
-              />
-              <Shimmer
-                width="100%"
-                height={80}
-                borderRadius={12}
-                style={{ marginBottom: 12 }}
-              />
-              <Shimmer
-                width="100%"
-                height={80}
-                borderRadius={12}
-                style={{ marginBottom: 12 }}
-              />
-              <Shimmer width="100%" height={80} borderRadius={12} />
-            </View>
-          </>
-        ) : (
-          <>
             <CategoryBreakdown
               categoryBreakdown={categoryBreakdown}
               incomeBreakdown={incomeBreakdown}
@@ -434,6 +401,8 @@ export default function DashboardIndex() {
             />
 
             <MerchantBreakdown allTransactions={allTransactions} themeColors={colors} />
+
+            <PaymentMethodBreakdown allTransactions={allTransactions} themeColors={colors} />
 
             <SpendingTrends transactions={transactions} themeColors={colors} />
 
@@ -523,9 +492,8 @@ export default function DashboardIndex() {
                 )}
               </View>
             </View>
-          </>
-        )}
       </ScrollView>
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity

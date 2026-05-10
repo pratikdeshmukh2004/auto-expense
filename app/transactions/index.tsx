@@ -5,7 +5,7 @@ import { Animated, PanResponder, RefreshControl, ScrollView, Text, TextInput, To
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../providers/ThemeProvider';
 import { TransactionCard } from '../../components/features';
-import { Shimmer } from '../../components/animations';
+import { Shimmer, TransactionLoadingView } from '../../components/animations';
 import { TransactionFiltersModal, TransactionModal } from '../../components/modals';
 import { Transaction } from '../../services/TransactionService';
 import { getRelativeTime } from '../../utils/dateUtils';
@@ -664,14 +664,7 @@ export default function TransactionsIndex() {
 
       {/* Transactions List */}
       {loading ? (
-        <View style={{ paddingHorizontal: 20, paddingTop: 12, marginBottom: 20 }}>
-          <Shimmer width={80} height={16} borderRadius={8} style={{ marginBottom: 8 }} />
-          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
-          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
-          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
-          <Shimmer width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
-          <Shimmer width="100%" height={80} borderRadius={12} />
-        </View>
+        <TransactionLoadingView />
       ) : (
         <ScrollView 
         style={{ flex: 1 }} 

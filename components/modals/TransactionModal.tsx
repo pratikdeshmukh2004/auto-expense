@@ -82,7 +82,13 @@ export default function TransactionModal({ visible, onClose, transaction, prefil
           setSelectedPayment(prefillData.paymentMethod);
           setSelectedDateTime(new Date(prefillData.date));
         } else {
+          setAmount('');
+          setMerchant('');
+          setNotes('');
+          setSelectedCategory(sortedCategories.length > 0 ? sortedCategories[0].name : '');
+          setSelectedPayment(sortedPaymentMethods.length > 0 ? sortedPaymentMethods[0].name : '');
           setSelectedDateTime(new Date());
+          setTransactionType('expense');
         }
       }
     }

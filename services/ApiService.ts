@@ -1,6 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 
-const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzzAVWc8Yg-BYJoipLHIvJNaQdDr53CLiru6csh9CtQU7eeIO2ywDYW7BkHGpw4Opdx2w/exec';
 const API_URL_KEY = 'app_api_url';
 
 export interface ApiTransaction {
@@ -27,28 +26,30 @@ export interface ApiAddPayload {
 
 export class ApiService {
   static async getApiUrl(): Promise<string> {
-    try {
-      const url = await SecureStore.getItemAsync(API_URL_KEY);
-      return url || DEFAULT_API_URL;
-    } catch {
-      return DEFAULT_API_URL;
-    }
+    const url = await SecureStore.getItemAsync(API_URL_KEY);
+    return url || '';
+  }
+
+  static async hasApiUrl(): Promise<boolean> {
+    const url = await SecureStore.getItemAsync(API_URL_KEY);
+    return !!url;
   }
 
   static async setApiUrl(url: string): Promise<void> {
     await SecureStore.setItemAsync(API_URL_KEY, url);
   }
 
+  static async clearApiUrl(): Promise<void> {
+    await SecureStore.deleteItemAsync(API_URL_KEY);
+  }
+
   static async getTransactions(): Promise<ApiTransaction[]> {
-    try {
-      const url = await this.getApiUrl();
-      const response = await fetch(url);
-      const json = await response.json();
-      return json.data || [];
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-      return [];
-    }
+    const url = await this.getApiUrl();
+    if (!url) throw new Error('NO_API_URL');
+    const response = await fetch(url);
+    const json = await response.json();
+    if (!json.data || !Array.isArray(json.data)) throw new Error('INVALID_RESPONSE');
+    return json.data;
   }
 
   static async addTransaction(payload: ApiAddPayload): Promise<boolean> {

@@ -9,29 +9,26 @@ const KEYS = {
 };
 
 const DEFAULT_CATEGORIES = [
-  { id: '1', name: 'Material', icon: 'cube', color: '#f59e0b' },
-  { id: '2', name: 'Construction', icon: 'hammer', color: '#3b82f6' },
-  { id: '3', name: 'Labour', icon: 'people', color: '#8b5cf6' },
-  { id: '4', name: 'Transport', icon: 'car', color: '#10b981' },
-  { id: '5', name: 'Plumbing', icon: 'water', color: '#06b6d4' },
-  { id: '6', name: 'Electrical', icon: 'flash', color: '#eab308' },
-  { id: '7', name: 'Cement', icon: 'layers', color: '#64748b' },
-  { id: '8', name: 'Steel', icon: 'grid', color: '#475569' },
-  { id: '9', name: 'Sand & Gravel', icon: 'earth', color: '#a16207' },
-  { id: '10', name: 'Tiles & Flooring', icon: 'apps', color: '#0891b2' },
-  { id: '11', name: 'Paint', icon: 'color-palette', color: '#ec4899' },
-  { id: '12', name: 'Woodwork', icon: 'leaf', color: '#854d0e' },
-  { id: '13', name: 'Fabrication', icon: 'construct', color: '#6366f1' },
-  { id: '14', name: 'Food', icon: 'restaurant', color: '#ef4444' },
-  { id: '15', name: 'Other', icon: 'ellipsis-horizontal', color: '#6b7280' },
+  { id: '1', name: 'Food & Dining', icon: 'restaurant', color: '#ef4444' },
+  { id: '2', name: 'Transport', icon: 'car', color: '#10b981' },
+  { id: '3', name: 'Shopping', icon: 'cart', color: '#8b5cf6' },
+  { id: '4', name: 'Bills & Utilities', icon: 'flash', color: '#f59e0b' },
+  { id: '5', name: 'Entertainment', icon: 'game-controller', color: '#ec4899' },
+  { id: '6', name: 'Health', icon: 'medkit', color: '#06b6d4' },
+  { id: '7', name: 'Education', icon: 'school', color: '#3b82f6' },
+  { id: '8', name: 'Groceries', icon: 'basket', color: '#22c55e' },
+  { id: '9', name: 'Rent', icon: 'home', color: '#6366f1' },
+  { id: '10', name: 'Salary', icon: 'cash', color: '#10b981' },
+  { id: '11', name: 'Other', icon: 'ellipsis-horizontal', color: '#6b7280' },
 ];
 
 const DEFAULT_PAYMENT_METHODS = [
-  { id: '1', name: 'Credit Card', icon: 'card', color: '#3b82f6' },
-  { id: '2', name: 'Pratik', icon: 'person', color: '#8b5cf6' },
-  { id: '3', name: 'Vishal', icon: 'person', color: '#10b981' },
-  { id: '4', name: 'Home', icon: 'home', color: '#f59e0b' },
-  { id: '5', name: 'Other', icon: 'ellipsis-horizontal', color: '#6b7280' },
+  { id: '1', name: 'Cash', icon: 'cash', color: '#10b981' },
+  { id: '2', name: 'UPI', icon: 'phone-portrait', color: '#6366f1' },
+  { id: '3', name: 'Credit Card', icon: 'card', color: '#3b82f6' },
+  { id: '4', name: 'Debit Card', icon: 'card-outline', color: '#f59e0b' },
+  { id: '5', name: 'Bank Transfer', icon: 'swap-horizontal', color: '#8b5cf6' },
+  { id: '6', name: 'Other', icon: 'ellipsis-horizontal', color: '#6b7280' },
 ];
 
 async function getJson(key: string): Promise<any[]> {
@@ -51,7 +48,7 @@ export class StorageService {
   // Categories (local)
   static async getCategories(): Promise<any[]> {
     const cats = await getJson(KEYS.CATEGORIES);
-    if (cats.length === 0 || cats.length === 6) {
+    if (cats.length === 0) {
       await setJson(KEYS.CATEGORIES, DEFAULT_CATEGORIES);
       return DEFAULT_CATEGORIES;
     }
@@ -65,7 +62,7 @@ export class StorageService {
   // Payment Methods (local)
   static async getPaymentMethods(): Promise<any[]> {
     const methods = await getJson(KEYS.PAYMENT_METHODS);
-    if (methods.length === 0 || methods.length === 4) {
+    if (methods.length === 0) {
       await setJson(KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
       return DEFAULT_PAYMENT_METHODS;
     }
@@ -79,7 +76,7 @@ export class StorageService {
   // Transactions (API)
   static async getTransactions(): Promise<any[]> {
     const data = await ApiService.getTransactions();
-    return data.map((item, index) => ({
+    const transactions = data.map((item, index) => ({
       id: `${item.Date}-${index}-${item.Amount}`,
       merchant: item['Paid to'] || '',
       amount: String(item.Amount),
@@ -92,6 +89,13 @@ export class StorageService {
       paidBy: item['Paid By'] || '',
       paymentMethod: item['Paid By'] || '',
     }));
+
+    // Sync new categories & payment methods from API
+    if (transactions.length > 0) {
+      this.syncFromTransactions(data).catch(() => {});
+    }
+
+    return transactions;
   }
 
   static async saveTransactions(_transactions: any[]): Promise<void> {
@@ -130,5 +134,48 @@ export class StorageService {
 
   static async saveApprovedSenders(senders: any[]): Promise<void> {
     await setJson(KEYS.APPROVED_SENDERS, senders);
+  }
+
+  // Sync categories & payment methods from API transactions
+  static async syncFromTransactions(transactions: any[]): Promise<void> {
+    const SYNC_COLORS = ['#ef4444', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#6366f1', '#22c55e', '#64748b'];
+
+    // Sync categories
+    const categories = await this.getCategories();
+    const existingCatNames = new Set(categories.map(c => c.name.toLowerCase()));
+    let catAdded = false;
+    transactions.forEach(t => {
+      const cat = t.category || t.Category;
+      if (cat && !existingCatNames.has(cat.toLowerCase())) {
+        existingCatNames.add(cat.toLowerCase());
+        categories.push({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          name: cat,
+          icon: 'pricetag',
+          color: SYNC_COLORS[categories.length % SYNC_COLORS.length],
+        });
+        catAdded = true;
+      }
+    });
+    if (catAdded) await this.saveCategories(categories);
+
+    // Sync payment methods
+    const methods = await this.getPaymentMethods();
+    const existingMethodNames = new Set(methods.map(m => m.name.toLowerCase()));
+    let methodAdded = false;
+    transactions.forEach(t => {
+      const method = t.paymentMethod || t.paidBy || t['Paid By'];
+      if (method && !existingMethodNames.has(method.toLowerCase())) {
+        existingMethodNames.add(method.toLowerCase());
+        methods.push({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          name: method,
+          icon: 'wallet',
+          color: SYNC_COLORS[methods.length % SYNC_COLORS.length],
+        });
+        methodAdded = true;
+      }
+    });
+    if (methodAdded) await this.savePaymentMethods(methods);
   }
 }
